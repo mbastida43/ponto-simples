@@ -1,6 +1,6 @@
 # Ponto Simples
 
-Controle de ponto leve e direto, em duas versões. **As duas só aceitam e-mails corporativos** (veja [E-mails aceitos](#e-mails-aceitos)).
+Controle de ponto leve e direto, em duas versões. **As duas só aceitam e-mails dos domínios cadastrados** (veja [E-mails aceitos](#e-mails-aceitos)).
 
 | Versão | Arquivo | Para quem | Onde ficam os dados |
 | --- | --- | --- | --- |
@@ -51,7 +51,7 @@ node server.js          # inicia em http://localhost:3000
 node server.js --demo   # cria uma empresa de exemplo se o banco estiver vazio (apenas para testes)
 ```
 
-Logins da demo: `admin@demo.com` (administrador) e `ana@demo.com` (colaboradora), senha `demo1234`.
+Logins da demo: `admin@demo.com` (administrador) e `ana@demo.com` (colaboradora), senha `demo1234`. As contas da demo são criadas direto no banco e por isso não passam pela regra de domínio.
 
 Variáveis de ambiente:
 
@@ -111,9 +111,14 @@ Itens que ficaram de fora de propósito, para manter o projeto simples:
 
 ## E-mails aceitos
 
-Só entram e-mails corporativos, tanto no cadastro quanto no *Esqueci minha senha* e quando o administrador cadastra ou edita um colaborador. Provedores públicos (Gmail, Hotmail, Outlook, Live, Yahoo, iCloud, BOL, UOL, Terra, iG, Proton, GMX, Zoho e outros) são recusados com a mensagem "Use o seu e-mail corporativo".
+Só entram e-mails dos **domínios cadastrados**:
 
-A regra é uma lista de provedores bloqueados, na constante `FREE_MAIL` do `index.html` e do `server.js`. Qualquer domínio fora da lista é tratado como corporativo; para liberar apenas o domínio da sua empresa, troque a verificação por uma comparação com esse domínio.
+- `@qintess.com`
+- `@marlonbastida.com.br`
+
+Qualquer endereço desses domínios é aceito; todos os outros (Gmail, Hotmail e demais domínios) são recusados com a mensagem "Use um e-mail corporativo de um domínio cadastrado".
+
+A regra vale no cadastro, no *Esqueci minha senha* e quando o administrador cadastra ou edita um colaborador. Para cadastrar outro domínio, acrescente-o à lista `CORP_DOMAINS` no `index.html` e no `server.js`.
 
 ## Regras de cálculo (as duas versões)
 
