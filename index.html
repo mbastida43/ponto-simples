@@ -203,12 +203,11 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
       <section class="card">
         <div class="toolbar">
           <div class="period">
-            <button id="btnPrevMonth" class="link" title="Anterior">&#8249;</button>
+            <button id="btnPrevMonth" class="link" title="Semana anterior">&#8249;</button>
             <strong id="monthLabel"></strong>
-            <button id="btnNextMonth" class="link" title="Próximo">&#8250;</button>
+            <button id="btnNextMonth" class="link" title="Próxima semana">&#8250;</button>
           </div>
           <div class="no-print">
-            <button id="btnView" class="btn ghost">Ver mês</button>
             <button id="btnPrint" class="btn ghost">Imprimir</button>
             <button id="btnExport" class="btn ghost">Exportar CSV</button>
           </div>
@@ -310,8 +309,7 @@ const state = {
   me: null,         // usuario logado
   employees: [],    // admin: todos da empresa; colaborador: apenas ele mesmo
   empId: null,      // colaborador exibido
-  view: 'week',     // 'week' (segunda a domingo) ou 'month'
-  day: null,        // 'AAAA-MM-DD': um dia qualquer do periodo exibido
+  day: null,        // 'AAAA-MM-DD': um dia qualquer da semana exibida
   today: null,      // 'AAAA-MM-DD' (data do servidor, no fuso da empresa)
   records: {},      // { 'AAAA-MM-DD': { e1, s1, e2, s2, abono } }
   dirty: new Set(), // datas alteradas e ainda nao salvas
@@ -582,13 +580,11 @@ function calcDay(emp, date, rec) {
 
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const br = (date) => date.split('-').reverse().join('/');
-// Datas do periodo exibido: a semana inteira (segunda a domingo) ou o mes inteiro
+// Datas da semana exibida, de segunda a domingo
 function viewDates() {
   const d = new Date(state.day + 'T12:00:00');
-  const week = state.view === 'week';
-  if (week) d.setDate(d.getDate() - (d.getDay() + 6) % 7); else d.setDate(1);
-  const n = week ? 7 : new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  return Array.from({ length: n }, (_, i) => iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() + i)));
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+  return Array.from({ length: 7 }, (_, i) => iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() + i)));
 }
 
 // ---------- Renderizacao ----------
@@ -618,11 +614,7 @@ function renderEmployees() {
 function renderTable() {
   const emp = currentEmp();
   const dates = viewDates();
-  const week = state.view === 'week';
-  $('monthLabel').textContent = week
-    ? `Semana de ${br(dates[0]).slice(0, 5)} a ${br(dates[6])}`
-    : new Date(dates[0] + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  $('btnView').textContent = week ? 'Ver mês' : 'Ver semana';
+  $('monthLabel').textContent = `Semana de ${br(dates[0]).slice(0, 5)} a ${br(dates[6])}`;
   const s = emp.schedule;
   const lock = isAdmin() ? '' : 'disabled'; // colaborador apenas consulta
   $('rows').innerHTML = dates.map((date) => {
@@ -671,7 +663,7 @@ function renderSummary() {
   const tile = (label, value, cls = '') => `<div class="tile"><div class="label">${label}</div><div class="value ${cls}">${value}</div></div>`;
   $('summary').innerHTML =
     tile('Trabalhado / Previsto', `${fmt(t.worked)}<small> / ${fmt(t.expected)}</small>`) +
-    tile(state.view === 'week' ? 'Saldo da semana' : 'Saldo do mês', fmt(t.saldo, true) || '0:00', t.saldo < 0 ? 'neg' : t.saldo > 0 ? 'pos' : '') +
+    tile('Saldo da semana', fmt(t.saldo, true) || '0:00', t.saldo < 0 ? 'neg' : t.saldo > 0 ? 'pos' : '') +
     tile('Horas extras', fmt(t.extra)) +
     tile('Atrasos', `${fmt(t.late)}<small> · ${t.lateDays} dia(s)</small>`) +
     tile('Faltas', `${t.faltas}<small> dia(s)</small>`, t.faltas ? 'neg' : '');
@@ -848,17 +840,12 @@ $('btnNextEmp').onclick = run(() => stepEmp(1));
 function stepPeriod(delta) {
   if (!canLeave()) return;
   const d = new Date(state.day + 'T12:00:00');
-  if (state.view === 'week') d.setDate(d.getDate() + 7 * delta); else d.setMonth(d.getMonth() + delta, 1);
+  d.setDate(d.getDate() + 7 * delta);
   state.day = iso(d);
   return loadRecords();
 }
 $('btnPrevMonth').onclick = run(() => stepPeriod(-1));
 $('btnNextMonth').onclick = run(() => stepPeriod(1));
-$('btnView').onclick = run(() => {
-  if (!canLeave()) return;
-  state.view = state.view === 'week' ? 'month' : 'week';
-  return loadRecords();
-});
 
 $('btnPrint').onclick = () => window.print();
 

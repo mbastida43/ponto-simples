@@ -20,7 +20,7 @@ Dê dois cliques no `index.html`, ou abra o link do GitHub Pages acima.
 1. **Cadastro do funcionário:** no primeiro acesso a tela já abre em *Cadastrar funcionário* (nome, cargo, e-mail corporativo e senha de no mínimo 8 caracteres). **O primeiro cadastro vira administrador**; os seguintes entram como colaboradores.
 2. **Login:** e-mail e senha. A sessão termina quando o navegador é fechado.
 3. **Bater ponto:** o botão registra a hora do computador na próxima marcação livre do dia (entrada, saída para intervalo, retorno, saída).
-4. **Tela da semana:** a apuração abre mostrando só a semana atual inteira, de segunda a domingo, com o saldo da semana. As setas trocam de semana e o botão **Ver mês** mostra o mês inteiro (e **Ver semana** volta).
+4. **Tela da semana:** a apuração abre mostrando só a semana atual inteira, de segunda a domingo, com o saldo da semana. As setas trocam de semana. Imprimir e Exportar CSV também são por semana.
 5. **Administrador:** edita jornada e dias de trabalho de cada colaborador, corrige marcações, abona dias, imprime e exporta CSV. O colaborador só consulta o próprio ponto.
 
 ### Esqueci minha senha
