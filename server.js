@@ -22,6 +22,8 @@ const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MONTH_RE = /^\d{4}-\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Provedores publicos: nao sao e-mail corporativo
+const FREE_MAIL = /^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|rocketmail|icloud|me|mac|aol|bol|uol|terra|ig|zipmail|protonmail|proton|pm|gmx|yandex|mail|zoho|tutanota)\.(com|com\.br|net|me|br)$/;
 const SLOTS = ['e1', 's1', 'e2', 's2'];
 const SLOT_NAMES = { e1: 'Entrada', s1: 'Saída para intervalo', e2: 'Retorno do intervalo', s2: 'Saída' };
 
@@ -211,6 +213,7 @@ function cleanPassword(value, required) {
 function cleanEmail(value) {
   const email = String(value ?? '').trim().toLowerCase().slice(0, 120);
   if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Informe um e-mail válido.');
+  if (FREE_MAIL.test(email.split('@')[1])) throw new HttpError(400, 'Use o seu e-mail corporativo. Gmail, Hotmail, Outlook e outros e-mails pessoais não são aceitos.');
   return email;
 }
 

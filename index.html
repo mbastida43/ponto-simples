@@ -153,13 +153,13 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
       <form id="signupForm" class="form" hidden>
         <label>Nome completo <input name="name" required maxlength="80" autocomplete="name"></label>
         <label>Cargo <input name="job" maxlength="80"></label>
-        <label>E-mail <input name="email" type="email" required autocomplete="username"></label>
+        <label>E-mail corporativo <input name="email" type="email" required autocomplete="username" placeholder="nome@suaempresa.com.br"></label>
         <label>Senha (mínimo 8 caracteres) <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
         <p class="hint muted">O primeiro cadastro deste computador vira administrador.</p>
         <button class="btn primary big" type="submit">Cadastrar</button>
       </form>
       <form id="forgotForm" class="form" hidden>
-        <p class="hint muted">Disponível apenas para e-mails corporativos. O administrador receberá o pedido e definirá uma nova senha.</p>
+        <p class="hint muted">O administrador receberá o pedido e definirá uma nova senha.</p>
         <label>E-mail corporativo <input name="email" type="email" required autocomplete="username"></label>
         <button class="btn primary big" type="submit">Solicitar nova senha</button>
         <button id="btnBackLogin" class="textlink" type="button">Voltar para o login</button>
@@ -248,7 +248,7 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
       <h2 id="empDialogTitle">Novo colaborador</h2>
       <label>Nome <input name="name" required maxlength="80"></label>
       <div class="grid2">
-        <label>E-mail (login) <input name="email" type="email" required></label>
+        <label>E-mail corporativo (login) <input name="email" type="email" required></label>
         <label><span id="pwdLabel">Senha inicial</span> <input name="password" type="password" minlength="8" autocomplete="new-password"></label>
         <label>Cargo <input name="job" maxlength="80"></label>
         <label>Perfil
@@ -376,6 +376,7 @@ function cleanPassword(value, required) {
 function cleanEmail(value) {
   const email = String(value ?? '').trim().toLowerCase().slice(0, 120);
   if (!EMAIL_RE.test(email)) fail(400, 'Informe um e-mail válido.');
+  if (!isCorporate(email)) fail(400, 'Use o seu e-mail corporativo. Gmail, Hotmail, Outlook e outros e-mails pessoais não são aceitos.');
   return email;
 }
 function cleanName(value, message) {
@@ -442,7 +443,6 @@ async function backend(method, url, body) {
   }
   if (resource === 'forgot') {
     const email = cleanEmail(body.email);
-    if (!isCorporate(email)) fail(400, 'Recuperação de senha disponível apenas para e-mails corporativos.');
     const u = byEmail(email);
     if (u) { u.resetRequested = true; persist(); }
     return { ok: true }; // mesma resposta exista ou nao o e-mail

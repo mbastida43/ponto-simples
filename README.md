@@ -1,6 +1,6 @@
 # Ponto Simples
 
-Controle de ponto leve e direto, em duas versões:
+Controle de ponto leve e direto, em duas versões. **As duas só aceitam e-mails corporativos** (veja [E-mails aceitos](#e-mails-aceitos)).
 
 | Versão | Arquivo | Para quem | Onde ficam os dados |
 | --- | --- | --- | --- |
@@ -17,16 +17,14 @@ Um único arquivo com HTML, CSS e JavaScript juntos. Não precisa de Node, de in
 
 Dê dois cliques no `index.html`, ou abra o link do GitHub Pages acima.
 
-1. **Cadastro do funcionário:** no primeiro acesso a tela já abre em *Cadastrar funcionário* (nome, cargo, e-mail e senha de no mínimo 8 caracteres). **O primeiro cadastro vira administrador**; os seguintes entram como colaboradores.
+1. **Cadastro do funcionário:** no primeiro acesso a tela já abre em *Cadastrar funcionário* (nome, cargo, e-mail corporativo e senha de no mínimo 8 caracteres). **O primeiro cadastro vira administrador**; os seguintes entram como colaboradores.
 2. **Login:** e-mail e senha. A sessão termina quando o navegador é fechado.
 3. **Bater ponto:** o botão registra a hora do computador na próxima marcação livre do dia (entrada, saída para intervalo, retorno, saída).
 4. **Administrador:** edita jornada e dias de trabalho de cada colaborador, corrige marcações, abona dias, imprime e exporta CSV. O colaborador só consulta o próprio ponto.
 
 ### Esqueci minha senha
 
-O botão fica na tela de login e **só aceita e-mails corporativos**. Provedores públicos (Gmail, Hotmail, Outlook, Yahoo, iCloud, BOL, UOL, Terra, Proton e outros) são recusados. A lista está na constante `FREE_MAIL` do `index.html`.
-
-Como não há servidor para enviar e-mail, o pedido vai para o administrador: no próximo login ele recebe um aviso e o funcionário aparece na lista como *(pediu nova senha)*. O administrador clica em **Editar** e define a nova senha.
+O botão fica na tela de login. Como não há servidor para enviar e-mail, o pedido vai para o administrador: no próximo login ele recebe um aviso e o funcionário aparece na lista como *(pediu nova senha)*. O administrador clica em **Editar** e define a nova senha.
 
 ### Limites desta versão
 
@@ -110,6 +108,12 @@ Itens que ficaram de fora de propósito, para manter o projeto simples:
 | PUT / DELETE | `/api/employees/:id` | admin | edita / exclui |
 | GET | `/api/employees/:id/records?month=AAAA-MM` | admin ou o próprio | marcações do mês |
 | PUT | `/api/employees/:id/records` | admin | corrige marcações |
+
+## E-mails aceitos
+
+Só entram e-mails corporativos, tanto no cadastro quanto no *Esqueci minha senha* e quando o administrador cadastra ou edita um colaborador. Provedores públicos (Gmail, Hotmail, Outlook, Live, Yahoo, iCloud, BOL, UOL, Terra, iG, Proton, GMX, Zoho e outros) são recusados com a mensagem "Use o seu e-mail corporativo".
+
+A regra é uma lista de provedores bloqueados, na constante `FREE_MAIL` do `index.html` e do `server.js`. Qualquer domínio fora da lista é tratado como corporativo; para liberar apenas o domínio da sua empresa, troque a verificação por uma comparação com esse domínio.
 
 ## Regras de cálculo (as duas versões)
 
