@@ -203,11 +203,12 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
       <section class="card">
         <div class="toolbar">
           <div class="period">
-            <button id="btnPrevMonth" class="link" title="Mês anterior">&#8249;</button>
+            <button id="btnPrevMonth" class="link" title="Anterior">&#8249;</button>
             <strong id="monthLabel"></strong>
-            <button id="btnNextMonth" class="link" title="Próximo mês">&#8250;</button>
+            <button id="btnNextMonth" class="link" title="Próximo">&#8250;</button>
           </div>
           <div class="no-print">
+            <button id="btnView" class="btn ghost">Ver mês</button>
             <button id="btnPrint" class="btn ghost">Imprimir</button>
             <button id="btnExport" class="btn ghost">Exportar CSV</button>
           </div>
@@ -309,7 +310,8 @@ const state = {
   me: null,         // usuario logado
   employees: [],    // admin: todos da empresa; colaborador: apenas ele mesmo
   empId: null,      // colaborador exibido
-  month: null,      // 'AAAA-MM'
+  view: 'week',     // 'week' (segunda a domingo) ou 'month'
+  day: null,        // 'AAAA-MM-DD': um dia qualquer do periodo exibido
   today: null,      // 'AAAA-MM-DD' (data do servidor, no fuso da empresa)
   records: {},      // { 'AAAA-MM-DD': { e1, s1, e2, s2, abono } }
   dirty: new Set(), // datas alteradas e ainda nao salvas
@@ -511,8 +513,8 @@ async function backend(method, url, body) {
   if (me.role !== 'admin' && id !== me.id) fail(403, 'Você só pode ver o seu próprio ponto.');
   const recs = (db.records[find(id).id] ??= {});
   if (method === 'GET') {
-    const month = new URLSearchParams(query).get('month') ?? '';
-    return { today: now().date, records: Object.fromEntries(Object.entries(recs).filter(([d]) => d.startsWith(month + '-'))) };
+    const p = new URLSearchParams(query);
+    return { today: now().date, records: Object.fromEntries(Object.entries(recs).filter(([d]) => d >= p.get('from') && d <= p.get('to'))) };
   }
   requireAdmin(); // somente o administrador corrige marcacoes
   for (const [date, r] of Object.entries(body.days ?? {})) {
@@ -578,10 +580,15 @@ function calcDay(emp, date, rec) {
   return { dow, isWork, isToday, expected, worked, filled, status, counted, saldo, late, extra: saldo > 0 ? saldo : 0 };
 }
 
-function monthDates() {
-  const [y, m] = state.month.split('-').map(Number);
-  const n = new Date(y, m, 0).getDate();
-  return Array.from({ length: n }, (_, i) => `${state.month}-${String(i + 1).padStart(2, '0')}`);
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const br = (date) => date.split('-').reverse().join('/');
+// Datas do periodo exibido: a semana inteira (segunda a domingo) ou o mes inteiro
+function viewDates() {
+  const d = new Date(state.day + 'T12:00:00');
+  const week = state.view === 'week';
+  if (week) d.setDate(d.getDate() - (d.getDay() + 6) % 7); else d.setDate(1);
+  const n = week ? 7 : new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return Array.from({ length: n }, (_, i) => iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() + i)));
 }
 
 // ---------- Renderizacao ----------
@@ -610,11 +617,15 @@ function renderEmployees() {
 
 function renderTable() {
   const emp = currentEmp();
-  const [y, m] = state.month.split('-').map(Number);
-  $('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const dates = viewDates();
+  const week = state.view === 'week';
+  $('monthLabel').textContent = week
+    ? `Semana de ${br(dates[0]).slice(0, 5)} a ${br(dates[6])}`
+    : new Date(dates[0] + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  $('btnView').textContent = week ? 'Ver mês' : 'Ver semana';
   const s = emp.schedule;
   const lock = isAdmin() ? '' : 'disabled'; // colaborador apenas consulta
-  $('rows').innerHTML = monthDates().map((date) => {
+  $('rows').innerHTML = dates.map((date) => {
     const rec = state.records[date] ?? emptyRec();
     const c = calcDay(emp, date, rec);
     const inputs = SLOTS.map((k) =>
@@ -628,7 +639,7 @@ function renderTable() {
       <td><input type="checkbox" data-date="${date}" data-abono ${rec.abono ? 'checked' : ''} ${c.isWork ? lock : 'disabled'} title="Abonar o dia" aria-label="Abonar ${date}"></td>
     </tr>`;
   }).join('');
-  monthDates().forEach(updateRow);
+  dates.forEach(updateRow);
   renderSummary();
 }
 
@@ -650,7 +661,7 @@ function updateRow(date) {
 function renderSummary() {
   const emp = currentEmp();
   const t = { worked: 0, expected: 0, saldo: 0, extra: 0, late: 0, lateDays: 0, faltas: 0 };
-  for (const date of monthDates()) {
+  for (const date of viewDates()) {
     const c = calcDay(emp, date, state.records[date] ?? emptyRec());
     t.worked += c.worked;
     if (c.counted) { t.expected += c.expected; t.saldo += c.saldo; t.extra += c.extra; }
@@ -660,7 +671,7 @@ function renderSummary() {
   const tile = (label, value, cls = '') => `<div class="tile"><div class="label">${label}</div><div class="value ${cls}">${value}</div></div>`;
   $('summary').innerHTML =
     tile('Trabalhado / Previsto', `${fmt(t.worked)}<small> / ${fmt(t.expected)}</small>`) +
-    tile('Saldo do mês', fmt(t.saldo, true) || '0:00', t.saldo < 0 ? 'neg' : t.saldo > 0 ? 'pos' : '') +
+    tile(state.view === 'week' ? 'Saldo da semana' : 'Saldo do mês', fmt(t.saldo, true) || '0:00', t.saldo < 0 ? 'neg' : t.saldo > 0 ? 'pos' : '') +
     tile('Horas extras', fmt(t.extra)) +
     tile('Atrasos', `${fmt(t.late)}<small> · ${t.lateDays} dia(s)</small>`) +
     tile('Faltas', `${t.faltas}<small> dia(s)</small>`, t.faltas ? 'neg' : '');
@@ -679,7 +690,8 @@ async function loadEmployees() {
 
 async function loadRecords() {
   setDirty(null);
-  const data = await api('GET', `/api/employees/${state.empId}/records?month=${state.month}`);
+  const dates = viewDates();
+  const data = await api('GET', `/api/employees/${state.empId}/records?from=${dates[0]}&to=${dates.at(-1)}`);
   state.today = data.today;
   state.records = data.records;
   renderTable();
@@ -710,7 +722,7 @@ async function start() {
   catch (e) { if (e.status === 401) return showAuth(); throw e; }
   state.me = data.user;
   state.today = data.today;
-  state.month = data.today.slice(0, 7);
+  state.day = data.today;
   state.empId = data.user.id;
   $('companyName').textContent = data.company.name;
   $('userName').textContent = data.user.name;
@@ -812,7 +824,7 @@ $('btnPunch').onclick = run(async () => {
   const r = await api('POST', '/api/punch');
   toast(`${r.label} registrada às ${r.time}`);
   state.empId = state.me.id;
-  state.month = r.date.slice(0, 7);
+  state.day = r.date;
   renderEmployees();
   await loadRecords();
 });
@@ -833,22 +845,27 @@ $('empSelect').onchange = run((ev) => switchEmp(ev.target.value));
 $('btnPrevEmp').onclick = run(() => stepEmp(-1));
 $('btnNextEmp').onclick = run(() => stepEmp(1));
 
-function stepMonth(delta) {
+function stepPeriod(delta) {
   if (!canLeave()) return;
-  const [y, m] = state.month.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  state.month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const d = new Date(state.day + 'T12:00:00');
+  if (state.view === 'week') d.setDate(d.getDate() + 7 * delta); else d.setMonth(d.getMonth() + delta, 1);
+  state.day = iso(d);
   return loadRecords();
 }
-$('btnPrevMonth').onclick = run(() => stepMonth(-1));
-$('btnNextMonth').onclick = run(() => stepMonth(1));
+$('btnPrevMonth').onclick = run(() => stepPeriod(-1));
+$('btnNextMonth').onclick = run(() => stepPeriod(1));
+$('btnView').onclick = run(() => {
+  if (!canLeave()) return;
+  state.view = state.view === 'week' ? 'month' : 'week';
+  return loadRecords();
+});
 
 $('btnPrint').onclick = () => window.print();
 
 $('btnExport').onclick = () => {
   const emp = currentEmp();
   const lines = [['Data', 'Dia', 'Status', 'Ent1', 'Sai1', 'Ent2', 'Sai2', 'Trabalhado', 'Atraso', 'Extra', 'Saldo', 'Abono']];
-  for (const date of monthDates()) {
+  for (const date of viewDates()) {
     const rec = state.records[date] ?? emptyRec();
     const c = calcDay(emp, date, rec);
     lines.push([date.split('-').reverse().join('/'), WEEK[c.dow], STATUS_ICON[c.status][1], rec.e1, rec.s1, rec.e2, rec.s2,
@@ -859,7 +876,7 @@ $('btnExport').onclick = () => {
   const csv = '﻿' + lines.map((l) => l.map(cell).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `ponto_${emp.name.replace(/[^\p{L}\p{N}]+/gu, '_')}_${state.month}.csv`;
+  a.download = `ponto_${emp.name.replace(/[^\p{L}\p{N}]+/gu, '_')}_${viewDates()[0]}_a_${viewDates().at(-1)}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
 };
