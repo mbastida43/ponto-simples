@@ -1,0 +1,12 @@
+{
+  "name": "ponto-simples",
+  "version": "1.0.0",
+  "description": "Controle de ponto SaaS multiempresa: Node.js sem dependências + SQLite embutido + HTML/CSS/JS puro",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "demo": "node server.js --demo"
+  },
+  "engines": { "node": ">=22.13" },
+  "license": "MIT"
+}

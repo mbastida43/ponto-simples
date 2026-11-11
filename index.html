@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ponto Simples</title>
+  <style>
+:root {
+  --bg: #f1f2f6; --card: #fff; --line: #e6e7ee; --text: #2b2d42; --muted: #8b8fa3;
+  --primary: #6c6fc9; --primary-dark: #5558b0; --dark: #1f2233;
+  --ok: #22b573; --falta: #e5484d; --atencao: #f5a524; --folga: #6c6fc9;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+main { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+.muted { color: var(--muted); }
+.spacer { flex: 1; }
+
+.top { background: var(--dark); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; position: sticky; top: 0; z-index: 5; }
+.brand { font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+.logo { background: var(--primary); width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; }
+.top-right { display: flex; align-items: center; gap: 16px; }
+.clock { font-variant-numeric: tabular-nums; font-size: 18px; opacity: .9; }
+
+.card { background: var(--card); border-radius: 10px; box-shadow: 0 1px 3px rgba(31, 34, 51, .08); }
+
+.btn { border: 1px solid var(--line); background: #f4f5fa; color: var(--primary-dark); padding: 7px 14px; border-radius: 6px; font: inherit; cursor: pointer; }
+.btn:hover { filter: brightness(.97); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn.primary:hover { background: var(--primary-dark); filter: none; }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--text); }
+.btn.ghost:hover { background: #f4f5fa; }
+.btn.danger { color: var(--falta); background: #fff; }
+.btn.big { padding: 9px 20px; font-weight: 600; }
+.btn:disabled { opacity: .5; cursor: default; }
+.round { width: 30px; height: 30px; border-radius: 50%; border: 0; background: #e4e5f6; color: var(--primary-dark); font-size: 20px; line-height: 1; cursor: pointer; }
+.link { border: 0; background: none; color: var(--primary); font-size: 22px; line-height: 1; cursor: pointer; padding: 0 8px; }
+
+.emp { display: flex; align-items: center; gap: 14px; padding: 14px 18px; }
+.avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-weight: 600; flex: none; }
+.emp-info { flex: 1; min-width: 0; }
+.emp-info select { font: 600 16px system-ui, sans-serif; color: var(--text); border: 0; background: transparent; padding: 2px 0; max-width: 100%; cursor: pointer; }
+.emp-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.tile { padding: 16px 20px; border-right: 1px solid var(--line); }
+.tile:last-child { border-right: 0; }
+.tile .label { color: var(--muted); font-size: 12px; }
+.tile .value { font-size: 26px; font-weight: 300; color: var(--primary-dark); font-variant-numeric: tabular-nums; }
+.tile .value small { font-size: 15px; color: var(--muted); }
+.tile .value.neg { color: var(--falta); }
+.tile .value.pos { color: var(--ok); }
+
+.toolbar { display: flex; align-items: center; gap: 12px; padding: 12px 18px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.period { display: flex; align-items: center; }
+.period strong { min-width: 150px; text-align: center; display: inline-block; }
+.period strong::first-letter { text-transform: uppercase; }
+.dirty { display: flex; align-items: center; gap: 10px; }
+.dirty[hidden] { display: none; }
+.warn { color: var(--falta); }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { font-size: 12px; font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 5px 8px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th.left, td.left { text-align: left; }
+tr.today td { background: #f3f3fc; }
+tr.off td { color: var(--muted); }
+td input[type=time] { border: 1px solid transparent; background: transparent; font: inherit; color: inherit; padding: 3px 2px; border-radius: 4px; width: 108px; text-align: center; }
+td input[type=time]:hover, td input[type=time]:focus { border-color: var(--line); background: #fff; outline: none; }
+td input[type=time]:focus { border-color: var(--primary); }
+td.late input, .late { color: var(--atencao); }
+.neg { color: var(--falta); }
+.pos { color: var(--ok); }
+
+.st { font-weight: 700; display: inline-block; width: 18px; text-align: center; }
+.st.ok { color: var(--ok); } .st.falta { color: var(--falta); } .st.atencao, .st.andamento { color: var(--atencao); }
+.st.folga, .st.abonado { color: var(--folga); }
+.legend { padding: 10px 18px; margin: 0; font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.legend .st { margin-left: 10px; }
+
+dialog { border: 0; border-radius: 12px; padding: 22px; width: min(480px, 92vw); box-shadow: 0 10px 40px rgba(0, 0, 0, .25); color: var(--text); }
+dialog::backdrop { background: rgba(31, 34, 51, .5); }
+dialog h2 { margin: 0 0 14px; font-size: 18px; }
+dialog label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+dialog input:not([type=checkbox]) { display: block; width: 100%; margin-top: 3px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; color: var(--text); }
+fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 12px; padding: 10px 12px 2px; }
+legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
+.grid4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 10px; }
+.days { display: flex; gap: 10px; flex-wrap: wrap; padding-bottom: 8px; }
+.days label { display: flex; align-items: center; gap: 4px; margin: 0; color: var(--text); font-size: 13px; }
+.dialog-actions { display: flex; gap: 8px; align-items: center; }
+.error { color: var(--falta); margin: 0 0 10px; }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--dark); color: #fff; padding: 10px 18px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, .25); z-index: 20; }
+.toast.err { background: var(--falta); }
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .emp-actions { width: 100%; }
+  .emp { flex-wrap: wrap; }
+  .tile { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+@media print {
+  .no-print, .top-right, .round, .link, .toast { display: none !important; }
+  body { background: #fff; }
+  .top { position: static; background: #fff; color: #000; }
+  .card { box-shadow: none; }
+  main { max-width: none; padding: 0; }
+}
+
+/* ---------- Login, usuario e perfis ---------- */
+[hidden] { display: none !important; }
+.auth { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.auth-card { width: min(400px, 100%); padding: 28px; }
+.brand.dark { color: var(--text); font-size: 18px; margin-bottom: 18px; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.tab { flex: 1; background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 4px; font: inherit; color: var(--muted); cursor: pointer; }
+.tab.active { color: var(--primary-dark); border-bottom-color: var(--primary); font-weight: 600; }
+.form label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.form input:not([type=checkbox]), .form select { display: block; width: 100%; margin-top: 3px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; color: var(--text); background: #fff; }
+.form input:focus, .form select:focus { outline: none; border-color: var(--primary); }
+.auth-card .btn.big { width: 100%; margin-top: 6px; }
+.auth-card .error { margin: 12px 0 0; }
+.grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 10px; }
+.user { display: flex; align-items: center; gap: 12px; font-size: 13px; border-left: 1px solid rgba(255, 255, 255, .2); padding-left: 16px; }
+.toplink { background: none; border: 0; color: #b9bbf0; font: inherit; cursor: pointer; padding: 0; }
+.toplink:hover { color: #fff; text-decoration: underline; }
+body:not(.is-admin) .admin-only { display: none; }
+.emp-info select:disabled { opacity: 1; appearance: none; cursor: default; }
+td input:disabled { color: inherit; opacity: 1; -webkit-text-fill-color: currentColor; }
+td input[type=time]:disabled:hover { border-color: transparent; background: transparent; }
+@media (max-width: 640px) { .top { flex-wrap: wrap; gap: 8px; } .clock { display: none; } }
+.textlink { background: none; border: 0; color: var(--primary); font: inherit; cursor: pointer; padding: 8px 0 0; text-decoration: underline; }
+.hint { font-size: 13px; margin: 0; }
+  </style>
+</head>
+<body>
+  <!-- Entrar / Criar conta -->
+  <section id="authView" class="auth" hidden>
+    <div class="card auth-card">
+      <div class="brand dark"><span class="logo">P</span> Ponto Simples</div>
+      <div class="tabs">
+        <button id="tabLogin" class="tab active" type="button">Entrar</button>
+        <button id="tabSignup" class="tab" type="button">Cadastrar funcionário</button>
+      </div>
+      <form id="loginForm" class="form">
+        <label>E-mail <input name="email" type="email" required autocomplete="username"></label>
+        <label>Senha <input name="password" type="password" required autocomplete="current-password"></label>
+        <button class="btn primary big" type="submit">Entrar</button>
+        <button id="btnForgot" class="textlink" type="button">Esqueci minha senha</button>
+      </form>
+      <form id="signupForm" class="form" hidden>
+        <label>Nome completo <input name="name" required maxlength="80" autocomplete="name"></label>
+        <label>Cargo <input name="job" maxlength="80"></label>
+        <label>E-mail <input name="email" type="email" required autocomplete="username"></label>
+        <label>Senha (mínimo 8 caracteres) <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+        <p class="hint muted">O primeiro cadastro deste computador vira administrador.</p>
+        <button class="btn primary big" type="submit">Cadastrar</button>
+      </form>
+      <form id="forgotForm" class="form" hidden>
+        <p class="hint muted">Disponível apenas para e-mails corporativos. O administrador receberá o pedido e definirá uma nova senha.</p>
+        <label>E-mail corporativo <input name="email" type="email" required autocomplete="username"></label>
+        <button class="btn primary big" type="submit">Solicitar nova senha</button>
+        <button id="btnBackLogin" class="textlink" type="button">Voltar para o login</button>
+      </form>
+      <p id="authError" class="error" hidden></p>
+    </div>
+  </section>
+
+  <!-- Aplicacao -->
+  <div id="appView" hidden>
+    <header class="top">
+      <div class="brand"><span class="logo">P</span> <span id="companyName">Ponto Simples</span></div>
+      <div class="top-right">
+        <span id="clock" class="clock"></span>
+        <button id="btnPunch" class="btn primary big">Bater ponto</button>
+        <span class="user no-print">
+          <span id="userName"></span>
+          <button id="btnPassword" class="toplink">Alterar senha</button>
+          <button id="btnLogout" class="toplink">Sair</button>
+        </span>
+      </div>
+    </header>
+
+    <main>
+      <section class="card emp">
+        <button id="btnPrevEmp" class="round admin-only" title="Colaborador anterior">&#8249;</button>
+        <div class="avatar" id="avatar"></div>
+        <div class="emp-info">
+          <select id="empSelect" aria-label="Colaborador"></select>
+          <div class="muted" id="empMeta"></div>
+        </div>
+        <div class="emp-actions no-print admin-only">
+          <button id="btnEditEmp" class="btn ghost">Editar</button>
+          <button id="btnNewEmp" class="btn ghost">+ Novo colaborador</button>
+        </div>
+        <button id="btnNextEmp" class="round admin-only" title="Próximo colaborador">&#8250;</button>
+      </section>
+
+      <section class="card summary" id="summary"></section>
+
+      <section class="card">
+        <div class="toolbar">
+          <div class="period">
+            <button id="btnPrevMonth" class="link" title="Mês anterior">&#8249;</button>
+            <strong id="monthLabel"></strong>
+            <button id="btnNextMonth" class="link" title="Próximo mês">&#8250;</button>
+          </div>
+          <div class="no-print">
+            <button id="btnPrint" class="btn ghost">Imprimir</button>
+            <button id="btnExport" class="btn ghost">Exportar CSV</button>
+          </div>
+          <div class="spacer"></div>
+          <div id="dirtyBar" class="dirty no-print" hidden>
+            <span class="warn">&#9888; Você tem alterações não salvas</span>
+            <button id="btnCancel" class="btn">Cancelar</button>
+            <button id="btnSave" class="btn primary">Salvar</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th><th class="left">Dia</th><th>Previsto</th>
+                <th>Ent. 1</th><th>Saí. 1</th><th>Ent. 2</th><th>Saí. 2</th>
+                <th>Trabalhado</th><th>Atraso</th><th>Extra</th><th>Saldo</th><th>Abono</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <p class="legend muted">
+          <span class="st ok">&#10003;</span> Completo
+          <span class="st falta">&#10007;</span> Falta
+          <span class="st atencao">!</span> Marcação incompleta
+          <span class="st folga">&#9790;</span> Folga
+          <span class="st abonado">A</span> Abonado
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <!-- Cadastro de colaborador (admin) -->
+  <dialog id="empDialog">
+    <form id="empForm" class="form">
+      <h2 id="empDialogTitle">Novo colaborador</h2>
+      <label>Nome <input name="name" required maxlength="80"></label>
+      <div class="grid2">
+        <label>E-mail (login) <input name="email" type="email" required></label>
+        <label><span id="pwdLabel">Senha inicial</span> <input name="password" type="password" minlength="8" autocomplete="new-password"></label>
+        <label>Cargo <input name="job" maxlength="80"></label>
+        <label>Perfil
+          <select name="role">
+            <option value="employee">Colaborador</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </label>
+      </div>
+      <label>Início da apuração <input name="startDate" type="date" required></label>
+      <fieldset>
+        <legend>Jornada prevista</legend>
+        <div class="grid2">
+          <label>Entrada <input name="e1" type="time" required></label>
+          <label>Saída intervalo <input name="s1" type="time" required></label>
+          <label>Retorno <input name="e2" type="time" required></label>
+          <label>Saída <input name="s2" type="time" required></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Dias de trabalho</legend>
+        <div class="days" id="workdays"></div>
+      </fieldset>
+      <p id="empError" class="error" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" id="btnDeleteEmp" class="btn danger">Excluir</button>
+        <span class="spacer"></span>
+        <button type="button" id="btnCloseDialog" class="btn">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Alterar senha -->
+  <dialog id="pwdDialog">
+    <form id="pwdForm" class="form">
+      <h2>Alterar senha</h2>
+      <label>Senha atual <input name="current" type="password" required autocomplete="current-password"></label>
+      <label>Nova senha (mínimo 8 caracteres) <input name="next" type="password" required minlength="8" autocomplete="new-password"></label>
+      <p id="pwdError" class="error" hidden></p>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button type="button" id="btnClosePwd" class="btn">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+  <script>
+// Ponto Simples - frontend em JavaScript puro
+const $ = (id) => document.getElementById(id);
+const SLOTS = ['e1', 's1', 'e2', 's2'];
+const WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const TOLERANCE = 5; // minutos de tolerancia para atraso na entrada
+
+const state = {
+  me: null,         // usuario logado
+  employees: [],    // admin: todos da empresa; colaborador: apenas ele mesmo
+  empId: null,      // colaborador exibido
+  month: null,      // 'AAAA-MM'
+  today: null,      // 'AAAA-MM-DD' (data do servidor, no fuso da empresa)
+  records: {},      // { 'AAAA-MM-DD': { e1, s1, e2, s2, abono } }
+  dirty: new Set(), // datas alteradas e ainda nao salvas
+  editingId: null,
+};
+const isAdmin = () => state.me?.role === 'admin';
+
+// ---------- Utilitarios ----------
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const toMin = (t) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : null);
+const span = (a, b) => (a && b && toMin(b) > toMin(a) ? toMin(b) - toMin(a) : 0);
+function fmt(min, sign = false) {
+  if (min === null || min === undefined) return '';
+  const a = Math.abs(min);
+  const s = `${Math.floor(a / 60)}:${String(a % 60).padStart(2, '0')}`;
+  return (min < 0 ? '-' : sign && min > 0 ? '+' : '') + s;
+}
+const currentEmp = () => state.employees.find((e) => e.id === state.empId);
+const emptyRec = () => ({ e1: '', s1: '', e2: '', s2: '' });
+
+// ---------- "Servidor" local: tudo fica no localStorage deste navegador ----------
+// ponytail: dados por navegador/computador; para varios computadores use o server.js
+const DB_KEY = 'ponto-simples';
+const SESSION_KEY = 'ponto-simples-sessao'; // sessionStorage: fechar o navegador encerra a sessao
+const SLOT_NAMES = { e1: 'Entrada', s1: 'Saída para intervalo', e2: 'Retorno do intervalo', s2: 'Saída' };
+const DEFAULT_SCHEDULE = { e1: '08:00', s1: '12:00', e2: '13:00', s2: '17:00' };
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Provedores publicos: nao sao e-mail corporativo
+const FREE_MAIL = /^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|rocketmail|icloud|me|mac|aol|bol|uol|terra|ig|zipmail|protonmail|proton|pm|gmx|yandex|mail|zoho|tutanota)\.(com|com\.br|net|me|br)$/;
+const isCorporate = (email) => !FREE_MAIL.test(email.split('@')[1]);
+
+let db;
+const loadDb = () => (db = JSON.parse(localStorage.getItem(DB_KEY) || 'null') ?? { users: [], records: {} });
+const persist = () => localStorage.setItem(DB_KEY, JSON.stringify(db));
+const pad = (n) => String(n).padStart(2, '0');
+function now() {
+  const d = new Date();
+  return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+}
+function fail(status, message) { const e = new Error(message); e.status = status; throw e; }
+const publicUser = ({ hash, ...u }) => u;
+const byEmail = (email) => db.users.find((u) => u.email === email);
+
+// PBKDF2 + salt (Web Crypto); guarda "salt:hash" em hex
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+async function hashPassword(password, salt = crypto.getRandomValues(new Uint8Array(16))) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, key, 256);
+  return `${hex(salt)}:${hex(bits)}`;
+}
+async function verifyPassword(password, stored) {
+  const salt = Uint8Array.from(stored.split(':')[0].match(/../g), (h) => parseInt(h, 16));
+  return (await hashPassword(password, salt)) === stored;
+}
+
+function cleanPassword(value, required) {
+  const p = typeof value === 'string' ? value : '';
+  if (!p && !required) return null;
+  if (p.length < 8 || p.length > 200) fail(400, 'A senha deve ter pelo menos 8 caracteres.');
+  return p;
+}
+function cleanEmail(value) {
+  const email = String(value ?? '').trim().toLowerCase().slice(0, 120);
+  if (!EMAIL_RE.test(email)) fail(400, 'Informe um e-mail válido.');
+  return email;
+}
+function cleanName(value, message) {
+  const name = String(value ?? '').trim().slice(0, 80);
+  if (!name) fail(400, message);
+  return name;
+}
+function cleanEmployee(b) {
+  const name = cleanName(b.name, 'Informe o nome do colaborador.');
+  const email = cleanEmail(b.email);
+  const role = b.role === 'admin' ? 'admin' : 'employee';
+  const job = String(b.job ?? '').trim().slice(0, 80);
+  if (!DATE_RE.test(b.startDate ?? '')) fail(400, 'Data de início inválida.');
+  const schedule = {};
+  for (const k of SLOTS) {
+    if (!TIME_RE.test(b.schedule?.[k] ?? '')) fail(400, 'Preencha os quatro horários da jornada.');
+    schedule[k] = b.schedule[k];
+  }
+  if (!(schedule.e1 < schedule.s1 && schedule.s1 <= schedule.e2 && schedule.e2 < schedule.s2)) {
+    fail(400, 'Os horários da jornada devem estar em ordem crescente.');
+  }
+  const workdays = [...new Set((b.workdays ?? []).map(Number))].filter((d) => d >= 0 && d <= 6).sort();
+  if (!workdays.length) fail(400, 'Selecione ao menos um dia de trabalho.');
+  return { name, email, role, job, startDate: b.startDate, schedule, workdays };
+}
+function cleanRecord(r) {
+  const rec = {};
+  for (const k of SLOTS) {
+    const v = String(r?.[k] ?? '');
+    if (v && !TIME_RE.test(v)) fail(400, 'Horário inválido.');
+    rec[k] = v;
+  }
+  if (r?.abono === true) rec.abono = true;
+  return rec;
+}
+
+// Mesmas rotas do server.js, executadas aqui mesmo
+async function backend(method, url, body) {
+  loadDb(); // relê a cada chamada: outra aba pode ter gravado
+  const [path, query] = url.split('?');
+  const [, , resource, id, sub] = path.split('/');
+
+  if (resource === 'signup') { // cadastro do funcionario
+    const name = cleanName(body.name, 'Informe o seu nome.');
+    const email = cleanEmail(body.email);
+    const hash = await hashPassword(cleanPassword(body.password, true));
+    if (byEmail(email)) fail(409, 'Este e-mail já está cadastrado.');
+    const first = db.users.length === 0;
+    const user = {
+      id: crypto.randomUUID(), name, email, role: first ? 'admin' : 'employee',
+      job: String(body.job ?? '').trim().slice(0, 80), startDate: now().date,
+      schedule: { ...DEFAULT_SCHEDULE }, workdays: [1, 2, 3, 4, 5], hash,
+    };
+    db.users.push(user);
+    persist();
+    sessionStorage.setItem(SESSION_KEY, user.id);
+    return { ok: true };
+  }
+  if (resource === 'login') {
+    const u = byEmail(String(body.email ?? '').trim().toLowerCase());
+    if (!u || !(await verifyPassword(String(body.password ?? ''), u.hash))) fail(401, 'E-mail ou senha incorretos.');
+    sessionStorage.setItem(SESSION_KEY, u.id);
+    return { ok: true };
+  }
+  if (resource === 'forgot') {
+    const email = cleanEmail(body.email);
+    if (!isCorporate(email)) fail(400, 'Recuperação de senha disponível apenas para e-mails corporativos.');
+    const u = byEmail(email);
+    if (u) { u.resetRequested = true; persist(); }
+    return { ok: true }; // mesma resposta exista ou nao o e-mail
+  }
+
+  const me = db.users.find((u) => u.id === sessionStorage.getItem(SESSION_KEY));
+  if (!me) fail(401, 'Sessão expirada. Entre novamente.');
+  const requireAdmin = () => { if (me.role !== 'admin') fail(403, 'Apenas administradores podem fazer isso.'); };
+  const find = (empId) => db.users.find((u) => u.id === empId) ?? fail(404, 'Colaborador não encontrado.');
+
+  if (resource === 'logout') { sessionStorage.removeItem(SESSION_KEY); return { ok: true }; }
+  if (resource === 'me' && !id) return { user: publicUser(me), company: { name: 'Ponto Simples' }, today: now().date };
+  if (resource === 'me' && id === 'password') {
+    if (!(await verifyPassword(String(body.current ?? ''), me.hash))) fail(400, 'Senha atual incorreta.');
+    me.hash = await hashPassword(cleanPassword(body.next, true));
+    persist();
+    return { ok: true };
+  }
+  if (resource === 'punch') {
+    const { date, time } = now();
+    const recs = (db.records[me.id] ??= {});
+    const rec = recs[date] ?? emptyRec();
+    const slot = SLOTS.find((k) => !rec[k]);
+    if (!slot) fail(409, 'Todas as marcações de hoje já foram registradas.');
+    rec[slot] = time;
+    recs[date] = rec;
+    persist();
+    return { date, slot, time, label: SLOT_NAMES[slot] };
+  }
+  if (resource !== 'employees') fail(404, 'Rota não encontrada.');
+
+  if (!id) {
+    if (method === 'GET') return { employees: (me.role === 'admin' ? db.users : [me]).map(publicUser) };
+    requireAdmin();
+    const d = cleanEmployee(body);
+    if (byEmail(d.email)) fail(409, 'Este e-mail já está cadastrado.');
+    const u = { id: crypto.randomUUID(), ...d, hash: await hashPassword(cleanPassword(body.password, true)) };
+    db.users.push(u);
+    persist();
+    return publicUser(u);
+  }
+
+  if (!sub) {
+    requireAdmin();
+    const target = find(id);
+    if (method === 'DELETE') {
+      if (target === me) fail(400, 'Você não pode excluir a própria conta.');
+      db.users = db.users.filter((u) => u !== target);
+      delete db.records[target.id];
+      persist();
+      return { ok: true };
+    }
+    const d = cleanEmployee(body);
+    if (target === me) d.role = 'admin'; // o admin nao rebaixa a si mesmo
+    const other = byEmail(d.email);
+    if (other && other !== target) fail(409, 'Este e-mail já está cadastrado.');
+    const password = cleanPassword(body.password, false);
+    Object.assign(target, d);
+    if (password) { target.hash = await hashPassword(password); delete target.resetRequested; }
+    persist();
+    return publicUser(target);
+  }
+
+  // /api/employees/:id/records
+  if (me.role !== 'admin' && id !== me.id) fail(403, 'Você só pode ver o seu próprio ponto.');
+  const recs = (db.records[find(id).id] ??= {});
+  if (method === 'GET') {
+    const month = new URLSearchParams(query).get('month') ?? '';
+    return { today: now().date, records: Object.fromEntries(Object.entries(recs).filter(([d]) => d.startsWith(month + '-'))) };
+  }
+  requireAdmin(); // somente o administrador corrige marcacoes
+  for (const [date, r] of Object.entries(body.days ?? {})) {
+    if (!DATE_RE.test(date)) fail(400, 'Data inválida.');
+    const rec = cleanRecord(r);
+    if (!rec.e1 && !rec.s1 && !rec.e2 && !rec.s2 && !rec.abono) delete recs[date]; else recs[date] = rec;
+  }
+  persist();
+  return { ok: true };
+}
+
+async function api(method, url, body) {
+  try {
+    return structuredClone(await backend(method, url, body ?? {})); // copia: a tela nao altera o "banco" sem salvar
+  } catch (err) {
+    if (err.status === 401 && state.me) showAuth(); // sessao expirou
+    throw err;
+  }
+}
+
+let toastTimer;
+function toast(msg, isError = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' err' : '');
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.hidden = true), 3500);
+}
+const run = (fn) => (...args) => Promise.resolve(fn(...args)).catch((e) => toast(e.message, true));
+
+// ---------- Calculo do dia ----------
+function calcDay(emp, date, rec) {
+  const dow = new Date(date + 'T12:00:00').getDay();
+  const sch = emp.schedule;
+  const active = date >= emp.startDate;
+  const isWork = active && emp.workdays.includes(dow);
+  const expected = isWork ? span(sch.e1, sch.s1) + span(sch.e2, sch.s2) : 0;
+  const filled = SLOTS.filter((k) => rec[k]).length;
+  const worked = span(rec.e1, rec.s1) + span(rec.e2, rec.s2);
+  const badPair = (a, b) => !!a !== !!b || (a && b && toMin(b) <= toMin(a));
+  const incomplete = badPair(rec.e1, rec.s1) || badPair(rec.e2, rec.s2);
+  const isToday = date === state.today;
+  const future = date > state.today;
+
+  let status;
+  if (filled === 0) {
+    if (rec.abono && isWork) status = 'abonado';
+    else if (!active || future) status = 'none';
+    else if (!isWork) status = 'folga';
+    else status = isToday ? 'pendente' : 'falta';
+  } else if (incomplete) status = isToday ? 'andamento' : 'atencao';
+  else if (isToday && isWork && filled < 4) status = 'andamento';
+  else status = 'ok';
+
+  // O dia so entra no saldo quando esta "fechado"
+  const counted = ['ok', 'falta', 'atencao', 'abonado'].includes(status);
+  let saldo = counted ? worked - expected : null;
+  if (rec.abono && saldo < 0) saldo = 0;
+  const lateMin = isWork && rec.e1 ? toMin(rec.e1) - toMin(sch.e1) : 0;
+  const late = lateMin > TOLERANCE ? lateMin : 0;
+
+  return { dow, isWork, isToday, expected, worked, filled, status, counted, saldo, late, extra: saldo > 0 ? saldo : 0 };
+}
+
+function monthDates() {
+  const [y, m] = state.month.split('-').map(Number);
+  const n = new Date(y, m, 0).getDate();
+  return Array.from({ length: n }, (_, i) => `${state.month}-${String(i + 1).padStart(2, '0')}`);
+}
+
+// ---------- Renderizacao ----------
+const STATUS_ICON = {
+  ok: ['&#10003;', 'Completo'], falta: ['&#10007;', 'Falta'], atencao: ['!', 'Marcação incompleta'],
+  andamento: ['&#8226;', 'Em andamento'], folga: ['&#9790;', 'Folga'], abonado: ['A', 'Abonado'],
+  pendente: ['', ''], none: ['', ''],
+};
+
+function statusHtml(c) {
+  const [icon, title] = STATUS_ICON[c.status];
+  return icon ? `<span class="st ${c.status}" title="${title}">${icon}</span>` : '';
+}
+
+function renderEmployees() {
+  const sel = $('empSelect');
+  sel.innerHTML = state.employees.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}${e.resetRequested ? ' (pediu nova senha)' : ''}</option>`).join('');
+  if (!currentEmp()) state.empId = state.me.id;
+  const emp = currentEmp();
+  sel.value = emp.id;
+  sel.disabled = state.employees.length < 2;
+  const s = emp.schedule;
+  $('avatar').textContent = emp.name.split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+  $('empMeta').textContent = `${emp.job ? emp.job + ' · ' : ''}Jornada ${s.e1}–${s.s1} / ${s.e2}–${s.s2}`;
+}
+
+function renderTable() {
+  const emp = currentEmp();
+  const [y, m] = state.month.split('-').map(Number);
+  $('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const s = emp.schedule;
+  const lock = isAdmin() ? '' : 'disabled'; // colaborador apenas consulta
+  $('rows').innerHTML = monthDates().map((date) => {
+    const rec = state.records[date] ?? emptyRec();
+    const c = calcDay(emp, date, rec);
+    const inputs = SLOTS.map((k) =>
+      `<td class="t-${k}"><input type="time" data-date="${date}" data-slot="${k}" value="${esc(rec[k] || '')}" aria-label="${k} ${date}" ${lock}></td>`).join('');
+    return `<tr data-date="${date}" class="${c.isToday ? 'today' : ''} ${c.isWork ? '' : 'off'}">
+      <td class="c-status"></td>
+      <td class="left">${date.slice(8)}/${date.slice(5, 7)} · ${WEEK[c.dow]}</td>
+      <td>${c.isWork ? `${s.e1.slice(0, 2)}-${s.s1.slice(0, 2)}/${s.e2.slice(0, 2)}-${s.s2.slice(0, 2)}` : 'Folga'}</td>
+      ${inputs}
+      <td class="c-worked"></td><td class="c-late late"></td><td class="c-extra pos"></td><td class="c-saldo"></td>
+      <td><input type="checkbox" data-date="${date}" data-abono ${rec.abono ? 'checked' : ''} ${c.isWork ? lock : 'disabled'} title="Abonar o dia" aria-label="Abonar ${date}"></td>
+    </tr>`;
+  }).join('');
+  monthDates().forEach(updateRow);
+  renderSummary();
+}
+
+// Atualiza apenas as celulas calculadas da linha (mantem o foco nos campos)
+function updateRow(date) {
+  const tr = document.querySelector(`tr[data-date="${date}"]`);
+  if (!tr) return;
+  const c = calcDay(currentEmp(), date, state.records[date] ?? emptyRec());
+  tr.querySelector('.c-status').innerHTML = statusHtml(c);
+  tr.querySelector('.c-worked').textContent = c.filled ? fmt(c.worked) : '';
+  tr.querySelector('.c-late').textContent = c.late ? fmt(c.late) : '';
+  tr.querySelector('.c-extra').textContent = c.extra ? fmt(c.extra) : '';
+  const saldo = tr.querySelector('.c-saldo');
+  saldo.textContent = c.saldo ? fmt(c.saldo, true) : '';
+  saldo.className = 'c-saldo ' + (c.saldo < 0 ? 'neg' : 'pos');
+  tr.querySelector('.t-e1').classList.toggle('late', c.late > 0);
+}
+
+function renderSummary() {
+  const emp = currentEmp();
+  const t = { worked: 0, expected: 0, saldo: 0, extra: 0, late: 0, lateDays: 0, faltas: 0 };
+  for (const date of monthDates()) {
+    const c = calcDay(emp, date, state.records[date] ?? emptyRec());
+    t.worked += c.worked;
+    if (c.counted) { t.expected += c.expected; t.saldo += c.saldo; t.extra += c.extra; }
+    if (c.late) { t.late += c.late; t.lateDays++; }
+    if (c.status === 'falta') t.faltas++;
+  }
+  const tile = (label, value, cls = '') => `<div class="tile"><div class="label">${label}</div><div class="value ${cls}">${value}</div></div>`;
+  $('summary').innerHTML =
+    tile('Trabalhado / Previsto', `${fmt(t.worked)}<small> / ${fmt(t.expected)}</small>`) +
+    tile('Saldo do mês', fmt(t.saldo, true) || '0:00', t.saldo < 0 ? 'neg' : t.saldo > 0 ? 'pos' : '') +
+    tile('Horas extras', fmt(t.extra)) +
+    tile('Atrasos', `${fmt(t.late)}<small> · ${t.lateDays} dia(s)</small>`) +
+    tile('Faltas', `${t.faltas}<small> dia(s)</small>`, t.faltas ? 'neg' : '');
+}
+
+function setDirty(date) {
+  if (date) state.dirty.add(date); else state.dirty.clear();
+  $('dirtyBar').hidden = state.dirty.size === 0;
+}
+
+// ---------- Carga de dados ----------
+async function loadEmployees() {
+  state.employees = (await api('GET', '/api/employees')).employees;
+  renderEmployees();
+}
+
+async function loadRecords() {
+  setDirty(null);
+  const data = await api('GET', `/api/employees/${state.empId}/records?month=${state.month}`);
+  state.today = data.today;
+  state.records = data.records;
+  renderTable();
+}
+
+async function save() {
+  if (!state.dirty.size) return;
+  const days = {};
+  for (const d of state.dirty) days[d] = state.records[d] ?? emptyRec();
+  await api('PUT', `/api/employees/${state.empId}/records`, { days });
+  setDirty(null);
+  toast('Alterações salvas.');
+}
+
+// Confirma antes de descartar edicoes pendentes
+const canLeave = () => state.dirty.size === 0 || confirm('Há alterações não salvas. Deseja descartá-las?');
+
+// ---------- Login / cadastro ----------
+function showAuth() {
+  state.me = null;
+  $('appView').hidden = true;
+  $('authView').hidden = false;
+}
+
+async function start() {
+  let data;
+  try { data = await api('GET', '/api/me'); }
+  catch (e) { if (e.status === 401) return showAuth(); throw e; }
+  state.me = data.user;
+  state.today = data.today;
+  state.month = data.today.slice(0, 7);
+  state.empId = data.user.id;
+  $('companyName').textContent = data.company.name;
+  $('userName').textContent = data.user.name;
+  document.body.classList.toggle('is-admin', isAdmin());
+  $('authView').hidden = true;
+  $('appView').hidden = false;
+  await loadEmployees();
+  await loadRecords();
+  const pending = state.employees.filter((e) => e.resetRequested).map((e) => e.name);
+  if (isAdmin() && pending.length) toast(`Pedido de nova senha: ${pending.join(', ')}. Use Editar para definir.`);
+}
+
+function setTab(form) {
+  $('tabLogin').classList.toggle('active', form === 'loginForm');
+  $('tabSignup').classList.toggle('active', form === 'signupForm');
+  for (const id of ['loginForm', 'signupForm', 'forgotForm']) $(id).hidden = id !== form;
+  $('authError').hidden = true;
+}
+$('tabLogin').onclick = () => setTab('loginForm');
+$('tabSignup').onclick = () => setTab('signupForm');
+$('btnForgot').onclick = () => setTab('forgotForm');
+$('btnBackLogin').onclick = () => setTab('loginForm');
+if (!loadDb().users.length) setTab('signupForm'); // primeiro acesso: pede o cadastro
+
+$('forgotForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  try {
+    await api('POST', '/api/forgot', { email: ev.target.email.value });
+    ev.target.reset();
+    setTab('loginForm');
+    toast('Pedido enviado ao administrador.');
+  } catch (e) {
+    $('authError').textContent = e.message;
+    $('authError').hidden = false;
+  }
+});
+
+function authSubmit(url, getBody) {
+  return async (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    $('authError').hidden = true;
+    try {
+      await api('POST', url, getBody(f));
+      f.reset();
+      await start();
+    } catch (e) {
+      $('authError').textContent = e.message;
+      $('authError').hidden = false;
+    }
+  };
+}
+$('loginForm').addEventListener('submit', authSubmit('/api/login', (f) => ({ email: f.email.value, password: f.password.value })));
+$('signupForm').addEventListener('submit', authSubmit('/api/signup', (f) => ({
+  name: f.name.value, job: f.job.value, email: f.email.value, password: f.password.value,
+})));
+
+$('btnLogout').onclick = run(async () => {
+  if (!canLeave()) return;
+  await api('POST', '/api/logout');
+  setDirty(null);
+  showAuth();
+});
+
+$('btnPassword').onclick = () => { $('pwdForm').reset(); $('pwdError').hidden = true; $('pwdDialog').showModal(); };
+$('btnClosePwd').onclick = () => $('pwdDialog').close();
+$('pwdForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const f = ev.target;
+  try {
+    await api('POST', '/api/me/password', { current: f.current.value, next: f.next.value });
+    $('pwdDialog').close();
+    toast('Senha alterada.');
+  } catch (e) {
+    $('pwdError').textContent = e.message;
+    $('pwdError').hidden = false;
+  }
+});
+
+// ---------- Eventos da apuracao ----------
+$('rows').addEventListener('input', (ev) => {
+  const el = ev.target;
+  const date = el.dataset.date;
+  if (!date) return;
+  const rec = (state.records[date] ??= emptyRec());
+  if (el.dataset.slot) rec[el.dataset.slot] = el.value;
+  else if ('abono' in el.dataset) { if (el.checked) rec.abono = true; else delete rec.abono; }
+  setDirty(date);
+  updateRow(date);
+  renderSummary();
+});
+
+$('btnSave').onclick = run(save);
+$('btnCancel').onclick = run(loadRecords);
+
+// O ponto e sempre batido para o proprio usuario logado
+$('btnPunch').onclick = run(async () => {
+  await save(); // garante que edicoes pendentes nao se percam
+  const r = await api('POST', '/api/punch');
+  toast(`${r.label} registrada às ${r.time}`);
+  state.empId = state.me.id;
+  state.month = r.date.slice(0, 7);
+  renderEmployees();
+  await loadRecords();
+});
+
+function switchEmp(id) {
+  if (!canLeave()) { $('empSelect').value = state.empId; return; }
+  state.empId = id;
+  renderEmployees();
+  return loadRecords();
+}
+function stepEmp(delta) {
+  const n = state.employees.length;
+  if (n < 2) return;
+  const i = state.employees.findIndex((e) => e.id === state.empId);
+  return switchEmp(state.employees[(i + delta + n) % n].id);
+}
+$('empSelect').onchange = run((ev) => switchEmp(ev.target.value));
+$('btnPrevEmp').onclick = run(() => stepEmp(-1));
+$('btnNextEmp').onclick = run(() => stepEmp(1));
+
+function stepMonth(delta) {
+  if (!canLeave()) return;
+  const [y, m] = state.month.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  state.month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return loadRecords();
+}
+$('btnPrevMonth').onclick = run(() => stepMonth(-1));
+$('btnNextMonth').onclick = run(() => stepMonth(1));
+
+$('btnPrint').onclick = () => window.print();
+
+$('btnExport').onclick = () => {
+  const emp = currentEmp();
+  const lines = [['Data', 'Dia', 'Status', 'Ent1', 'Sai1', 'Ent2', 'Sai2', 'Trabalhado', 'Atraso', 'Extra', 'Saldo', 'Abono']];
+  for (const date of monthDates()) {
+    const rec = state.records[date] ?? emptyRec();
+    const c = calcDay(emp, date, rec);
+    lines.push([date.split('-').reverse().join('/'), WEEK[c.dow], STATUS_ICON[c.status][1], rec.e1, rec.s1, rec.e2, rec.s2,
+      c.filled ? fmt(c.worked) : '', c.late ? fmt(c.late) : '', c.extra ? fmt(c.extra) : '', c.saldo ? fmt(c.saldo, true) : '', rec.abono ? 'Sim' : '']);
+  }
+  // Aspas em todos os campos; o apostrofo inicial evita que o Excel interprete texto como formula
+  const cell = (v) => { const s = String(v ?? ''); return `"${(/^[=@\t\r]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`; };
+  const csv = '﻿' + lines.map((l) => l.map(cell).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `ponto_${emp.name.replace(/[^\p{L}\p{N}]+/gu, '_')}_${state.month}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+// ---------- Cadastro de colaborador (admin) ----------
+$('workdays').innerHTML = WEEK.map((d, i) => `<label><input type="checkbox" name="wd" value="${i}"> ${d}</label>`).join('');
+
+function openDialog(emp) {
+  const f = $('empForm');
+  state.editingId = emp?.id ?? null;
+  $('empDialogTitle').textContent = emp ? 'Editar colaborador' : 'Novo colaborador';
+  $('pwdLabel').textContent = emp ? 'Nova senha (opcional)' : 'Senha inicial';
+  $('btnDeleteEmp').hidden = !emp || emp.id === state.me.id;
+  $('empError').hidden = true;
+  f.reset();
+  f.name.value = emp?.name ?? '';
+  f.email.value = emp?.email ?? '';
+  f.password.required = !emp;
+  f.job.value = emp?.job ?? '';
+  f.role.value = emp?.role ?? 'employee';
+  f.role.disabled = emp?.id === state.me.id;
+  f.startDate.value = emp?.startDate ?? state.today;
+  const sch = emp?.schedule ?? { e1: '08:00', s1: '12:00', e2: '13:00', s2: '17:00' };
+  for (const k of SLOTS) f[k].value = sch[k];
+  const wd = emp?.workdays ?? [1, 2, 3, 4, 5];
+  f.querySelectorAll('[name=wd]').forEach((c) => (c.checked = wd.includes(Number(c.value))));
+  $('empDialog').showModal();
+}
+$('btnNewEmp').onclick = () => openDialog(null);
+$('btnEditEmp').onclick = () => openDialog(currentEmp());
+$('btnCloseDialog').onclick = () => $('empDialog').close();
+
+$('empForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const f = ev.target;
+  const body = {
+    name: f.name.value, email: f.email.value, password: f.password.value, job: f.job.value, role: f.role.value,
+    startDate: f.startDate.value,
+    schedule: Object.fromEntries(SLOTS.map((k) => [k, f[k].value])),
+    workdays: [...f.querySelectorAll('[name=wd]:checked')].map((c) => Number(c.value)),
+  };
+  try {
+    const emp = state.editingId
+      ? await api('PUT', `/api/employees/${state.editingId}`, body)
+      : await api('POST', '/api/employees', body);
+    $('empDialog').close();
+    const changed = state.empId !== emp.id;
+    state.empId = emp.id;
+    if (emp.id === state.me.id) { state.me = emp; $('userName').textContent = emp.name; }
+    await loadEmployees();
+    if (changed) await loadRecords(); else renderTable();
+    toast('Colaborador salvo.');
+  } catch (e) {
+    $('empError').textContent = e.message;
+    $('empError').hidden = false;
+  }
+});
+
+$('btnDeleteEmp').onclick = run(async () => {
+  const emp = currentEmp();
+  if (!confirm(`Excluir ${emp.name} e todas as suas marcações? Esta ação não pode ser desfeita.`)) return;
+  await api('DELETE', `/api/employees/${emp.id}`);
+  $('empDialog').close();
+  state.empId = state.me.id;
+  await loadEmployees();
+  await loadRecords();
+  toast('Colaborador excluído.');
+});
+
+window.addEventListener('beforeunload', (ev) => { if (state.dirty.size) ev.preventDefault(); });
+
+// ---------- Inicio ----------
+function tick() { $('clock').textContent = new Date().toLocaleTimeString('pt-BR'); }
+tick();
+setInterval(tick, 1000);
+run(start)();
+  </script>
+</body>
+</html>

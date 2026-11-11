@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ponto Simples</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Entrar / Criar conta -->
+  <section id="authView" class="auth" hidden>
+    <div class="card auth-card">
+      <div class="brand dark"><span class="logo">P</span> Ponto Simples</div>
+      <div class="tabs">
+        <button id="tabLogin" class="tab active" type="button">Entrar</button>
+        <button id="tabSignup" class="tab" type="button">Criar conta da empresa</button>
+      </div>
+      <form id="loginForm" class="form">
+        <label>E-mail <input name="email" type="email" required autocomplete="username"></label>
+        <label>Senha <input name="password" type="password" required autocomplete="current-password"></label>
+        <button class="btn primary big" type="submit">Entrar</button>
+      </form>
+      <form id="signupForm" class="form" hidden>
+        <label>Nome da empresa <input name="company" required maxlength="80"></label>
+        <label>Seu nome <input name="name" required maxlength="80" autocomplete="name"></label>
+        <label>E-mail <input name="email" type="email" required autocomplete="username"></label>
+        <label>Senha (mínimo 8 caracteres) <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+        <button class="btn primary big" type="submit">Criar conta</button>
+      </form>
+      <p id="authError" class="error" hidden></p>
+    </div>
+  </section>
+
+  <!-- Aplicacao -->
+  <div id="appView" hidden>
+    <header class="top">
+      <div class="brand"><span class="logo">P</span> <span id="companyName">Ponto Simples</span></div>
+      <div class="top-right">
+        <span id="clock" class="clock"></span>
+        <button id="btnPunch" class="btn primary big">Bater ponto</button>
+        <span class="user no-print">
+          <span id="userName"></span>
+          <button id="btnPassword" class="toplink">Alterar senha</button>
+          <button id="btnLogout" class="toplink">Sair</button>
+        </span>
+      </div>
+    </header>
+
+    <main>
+      <section class="card emp">
+        <button id="btnPrevEmp" class="round admin-only" title="Colaborador anterior">&#8249;</button>
+        <div class="avatar" id="avatar"></div>
+        <div class="emp-info">
+          <select id="empSelect" aria-label="Colaborador"></select>
+          <div class="muted" id="empMeta"></div>
+        </div>
+        <div class="emp-actions no-print admin-only">
+          <button id="btnEditEmp" class="btn ghost">Editar</button>
+          <button id="btnNewEmp" class="btn ghost">+ Novo colaborador</button>
+        </div>
+        <button id="btnNextEmp" class="round admin-only" title="Próximo colaborador">&#8250;</button>
+      </section>
+
+      <section class="card summary" id="summary"></section>
+
+      <section class="card">
+        <div class="toolbar">
+          <div class="period">
+            <button id="btnPrevMonth" class="link" title="Mês anterior">&#8249;</button>
+            <strong id="monthLabel"></strong>
+            <button id="btnNextMonth" class="link" title="Próximo mês">&#8250;</button>
+          </div>
+          <div class="no-print">
+            <button id="btnPrint" class="btn ghost">Imprimir</button>
+            <button id="btnExport" class="btn ghost">Exportar CSV</button>
+          </div>
+          <div class="spacer"></div>
+          <div id="dirtyBar" class="dirty no-print" hidden>
+            <span class="warn">&#9888; Você tem alterações não salvas</span>
+            <button id="btnCancel" class="btn">Cancelar</button>
+            <button id="btnSave" class="btn primary">Salvar</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th><th class="left">Dia</th><th>Previsto</th>
+                <th>Ent. 1</th><th>Saí. 1</th><th>Ent. 2</th><th>Saí. 2</th>
+                <th>Trabalhado</th><th>Atraso</th><th>Extra</th><th>Saldo</th><th>Abono</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <p class="legend muted">
+          <span class="st ok">&#10003;</span> Completo
+          <span class="st falta">&#10007;</span> Falta
+          <span class="st atencao">!</span> Marcação incompleta
+          <span class="st folga">&#9790;</span> Folga
+          <span class="st abonado">A</span> Abonado
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <!-- Cadastro de colaborador (admin) -->
+  <dialog id="empDialog">
+    <form id="empForm" class="form">
+      <h2 id="empDialogTitle">Novo colaborador</h2>
+      <label>Nome <input name="name" required maxlength="80"></label>
+      <div class="grid2">
+        <label>E-mail (login) <input name="email" type="email" required></label>
+        <label><span id="pwdLabel">Senha inicial</span> <input name="password" type="password" minlength="8" autocomplete="new-password"></label>
+        <label>Cargo <input name="job" maxlength="80"></label>
+        <label>Perfil
+          <select name="role">
+            <option value="employee">Colaborador</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </label>
+      </div>
+      <label>Início da apuração <input name="startDate" type="date" required></label>
+      <fieldset>
+        <legend>Jornada prevista</legend>
+        <div class="grid2">
+          <label>Entrada <input name="e1" type="time" required></label>
+          <label>Saída intervalo <input name="s1" type="time" required></label>
+          <label>Retorno <input name="e2" type="time" required></label>
+          <label>Saída <input name="s2" type="time" required></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Dias de trabalho</legend>
+        <div class="days" id="workdays"></div>
+      </fieldset>
+      <p id="empError" class="error" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" id="btnDeleteEmp" class="btn danger">Excluir</button>
+        <span class="spacer"></span>
+        <button type="button" id="btnCloseDialog" class="btn">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Alterar senha -->
+  <dialog id="pwdDialog">
+    <form id="pwdForm" class="form">
+      <h2>Alterar senha</h2>
+      <label>Senha atual <input name="current" type="password" required autocomplete="current-password"></label>
+      <label>Nova senha (mínimo 8 caracteres) <input name="next" type="password" required minlength="8" autocomplete="new-password"></label>
+      <p id="pwdError" class="error" hidden></p>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button type="button" id="btnClosePwd" class="btn">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
