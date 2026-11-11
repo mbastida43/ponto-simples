@@ -1,5 +1,7 @@
 # Ponto Simples (SaaS)
 
+**Acesse online:** https://mbastida43.github.io/ponto-simples/ (versão sem servidor: os dados ficam salvos no seu navegador)
+
 Controle de ponto multiempresa, leve e direto:
 
 - **Backend:** Node.js puro, **zero dependências** (`npm install` não é necessário). Banco SQLite embutido do próprio Node (`node:sqlite`).
