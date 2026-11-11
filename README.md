@@ -1,13 +1,50 @@
-# Ponto Simples (SaaS)
+# Ponto Simples
 
-**Acesse online:** https://mbastida43.github.io/ponto-simples/ (versão sem servidor: os dados ficam salvos no seu navegador)
+Controle de ponto leve e direto, em duas versões:
 
-Controle de ponto multiempresa, leve e direto:
+| Versão | Arquivo | Para quem | Onde ficam os dados |
+| --- | --- | --- | --- |
+| **Sem servidor** | `index.html` | um computador usado como relógio de ponto | no navegador (`localStorage`) |
+| **Com servidor (SaaS)** | `server.js` + `public/` | várias empresas e vários computadores | banco SQLite no servidor |
+
+**Acesse online:** https://mbastida43.github.io/ponto-simples/ (versão sem servidor)
+
+## Versão sem servidor (`index.html`)
+
+Um único arquivo com HTML, CSS e JavaScript juntos. Não precisa de Node, de instalação nem de internet.
+
+### Como usar
+
+Dê dois cliques no `index.html`, ou abra o link do GitHub Pages acima.
+
+1. **Cadastro do funcionário:** no primeiro acesso a tela já abre em *Cadastrar funcionário* (nome, cargo, e-mail e senha de no mínimo 8 caracteres). **O primeiro cadastro vira administrador**; os seguintes entram como colaboradores.
+2. **Login:** e-mail e senha. A sessão termina quando o navegador é fechado.
+3. **Bater ponto:** o botão registra a hora do computador na próxima marcação livre do dia (entrada, saída para intervalo, retorno, saída).
+4. **Administrador:** edita jornada e dias de trabalho de cada colaborador, corrige marcações, abona dias, imprime e exporta CSV. O colaborador só consulta o próprio ponto.
+
+### Esqueci minha senha
+
+O botão fica na tela de login e **só aceita e-mails corporativos**. Provedores públicos (Gmail, Hotmail, Outlook, Yahoo, iCloud, BOL, UOL, Terra, Proton e outros) são recusados. A lista está na constante `FREE_MAIL` do `index.html`.
+
+Como não há servidor para enviar e-mail, o pedido vai para o administrador: no próximo login ele recebe um aviso e o funcionário aparece na lista como *(pediu nova senha)*. O administrador clica em **Editar** e define a nova senha.
+
+### Limites desta versão
+
+- **Os dados ficam só no navegador onde o arquivo foi aberto.** Outro computador, outro navegador ou uma janela anônima começam do zero. Limpar os dados do navegador apaga tudo, e não há backup automático (use *Exportar CSV*).
+- **Não há isolamento real entre usuários:** quem tem acesso ao computador consegue ler e alterar os dados pelas ferramentas do navegador. As senhas ficam protegidas (PBKDF2 com salt, nunca em texto puro), mas as marcações não.
+- **A hora vem do relógio do computador**, que pode ser alterado.
+- Uma única empresa por navegador.
+
+Se algum desses pontos for um problema, use a versão com servidor.
+
+## Versão com servidor (`server.js`)
+
+Multiempresa, com os dados no servidor.
 
 - **Backend:** Node.js puro, **zero dependências** (`npm install` não é necessário). Banco SQLite embutido do próprio Node (`node:sqlite`).
-- **Frontend:** HTML + CSS + JavaScript puro, sem framework e sem etapa de build.
+- **Frontend:** `public/` (HTML + CSS + JavaScript puro, sem framework e sem etapa de build).
 
-## Como rodar
+### Como rodar
 
 Requer Node.js **22.13 ou superior**.
 
@@ -27,22 +64,16 @@ Variáveis de ambiente:
 | `NODE_ENV=production` | marca o cookie de sessão como `Secure` (exige HTTPS) |
 | `TRUST_PROXY=1` | usa `X-Forwarded-For` para o limite de tentativas, quando atrás de proxy reverso |
 
-## Como funciona
+### Como funciona
 
 - **Criar conta da empresa:** cada cadastro cria uma empresa (tenant) e o seu primeiro administrador.
 - **Administrador:** cadastra colaboradores (e-mail + senha inicial, jornada, dias de trabalho), vê a apuração de todos, corrige marcações, abona dias, imprime e exporta CSV.
 - **Colaborador:** bate o próprio ponto e consulta a própria apuração (somente leitura).
-- **Bater ponto:** registra a hora do servidor, no fuso da empresa, na próxima marcação livre do dia (entrada, saída para intervalo, retorno, saída). Vale sempre para quem está logado.
+- **Bater ponto:** registra a hora do servidor, no fuso da empresa.
 
-### Regras de cálculo
+O cadastro feito pelo próprio funcionário e o *Esqueci minha senha* existem apenas na versão sem servidor.
 
-- Previsto = soma dos dois períodos da jornada, nos dias de trabalho a partir do início da apuração.
-- Saldo do dia = trabalhado − previsto. Positivo conta como extra.
-- Atraso = minutos após a entrada prevista, com tolerância de 5 minutos (`TOLERANCE` em `public/app.js`).
-- Dia de trabalho passado sem marcação = falta. O dia de hoje só entra no saldo após as quatro marcações.
-- Abono zera o saldo negativo do dia.
-
-## Segurança já incluída
+### Segurança já incluída
 
 - Isolamento entre empresas: toda consulta é filtrada pela empresa da sessão; o cliente nunca informa o tenant.
 - Autorização verificada a cada requisição (negado por padrão; perfis admin/colaborador).
@@ -52,31 +83,20 @@ Variáveis de ambiente:
 - Limite de tentativas de login e de cadastro; resposta de login não revela se o e-mail existe.
 - Cabeçalhos de segurança (CSP restrita, `X-Frame-Options`, `nosniff`).
 
-## Antes de colocar em produção
+### Antes de colocar em produção
 
 Itens que ficaram de fora de propósito, para manter o projeto simples:
 
 1. **HTTPS:** rode atrás de um proxy reverso (Caddy, nginx) com TLS e defina `NODE_ENV=production` e `TRUST_PROXY=1`.
-2. **Recuperação de senha e verificação de e-mail:** não há envio de e-mail. Hoje o administrador redefine a senha do colaborador; o administrador não tem como recuperar a própria.
+2. **Recuperação de senha e verificação de e-mail:** não há envio de e-mail. O administrador redefine a senha do colaborador; o administrador não tem como recuperar a própria.
 3. **Planos e cobrança:** não há assinatura nem limite por plano.
 4. **MFA** para administradores e **log de auditoria** das correções de ponto.
 5. **Escala:** o SQLite e o limite de tentativas em memória atendem a uma única instância. Para várias instâncias, migre para PostgreSQL (com Row-Level Security) e um limitador compartilhado.
 6. **Backup** de `data/ponto.db`.
 7. **LGPD:** termos de uso, política de privacidade e exclusão de dados da empresa.
-8. **Validade legal:** não é um REP homologado (Portaria MTP 671/2021); confirme os requisitos antes de usar como registro oficial.
-9. O `node:sqlite` ainda emite um aviso de "experimental" no Node 22.
+8. O `node:sqlite` ainda emite um aviso de "experimental" no Node 22.
 
-## Estrutura
-
-```
-server.js          API REST, autenticação e arquivos estáticos
-public/index.html  página única (login + apuração)
-public/style.css   estilos
-public/app.js      lógica da tela e cálculos
-data/ponto.db      banco SQLite (criado automaticamente)
-```
-
-## API
+### API
 
 | Método | Rota | Quem | Descrição |
 | --- | --- | --- | --- |
@@ -90,3 +110,29 @@ data/ponto.db      banco SQLite (criado automaticamente)
 | PUT / DELETE | `/api/employees/:id` | admin | edita / exclui |
 | GET | `/api/employees/:id/records?month=AAAA-MM` | admin ou o próprio | marcações do mês |
 | PUT | `/api/employees/:id/records` | admin | corrige marcações |
+
+## Regras de cálculo (as duas versões)
+
+- Previsto = soma dos dois períodos da jornada, nos dias de trabalho a partir do início da apuração.
+- Saldo do dia = trabalhado − previsto. Positivo conta como extra.
+- Atraso = minutos após a entrada prevista, com tolerância de 5 minutos (constante `TOLERANCE`).
+- Dia de trabalho passado sem marcação = falta. O dia de hoje só entra no saldo após as quatro marcações.
+- Abono zera o saldo negativo do dia.
+
+## Validade legal
+
+Nenhuma das versões é um REP homologado (Portaria MTP 671/2021). Confirme os requisitos antes de usar como registro oficial de jornada.
+
+## Estrutura
+
+```
+index.html         versão sem servidor (tudo em um arquivo)
+server.js          versão com servidor: API REST, autenticação e arquivos estáticos
+public/            telas da versão com servidor (index.html, style.css, app.js)
+data/ponto.db      banco SQLite da versão com servidor (criado automaticamente)
+LICENSE            licença MIT
+```
+
+## Licença
+
+[MIT](LICENSE) © 2026 Marlon Bastida
