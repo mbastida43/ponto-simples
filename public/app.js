@@ -8,7 +8,7 @@ const state = {
   me: null,         // usuario logado
   employees: [],    // admin: todos da empresa; colaborador: apenas ele mesmo
   empId: null,      // colaborador exibido
-  month: null,      // 'AAAA-MM'
+  day: null,        // 'AAAA-MM-DD': um dia qualquer da semana exibida
   today: null,      // 'AAAA-MM-DD' (data do servidor, no fuso da empresa)
   records: {},      // { 'AAAA-MM-DD': { e1, s1, e2, s2, abono } }
   dirty: new Set(), // datas alteradas e ainda nao salvas
@@ -90,10 +90,14 @@ function calcDay(emp, date, rec) {
   return { dow, isWork, isToday, expected, worked, filled, status, counted, saldo, late, extra: saldo > 0 ? saldo : 0 };
 }
 
-function monthDates() {
-  const [y, m] = state.month.split('-').map(Number);
-  const n = new Date(y, m, 0).getDate();
-  return Array.from({ length: n }, (_, i) => `${state.month}-${String(i + 1).padStart(2, '0')}`);
+const pad = (n) => String(n).padStart(2, '0');
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const br = (date) => date.split('-').reverse().join('/');
+// Datas da semana exibida, de segunda a domingo
+function viewDates() {
+  const d = new Date(state.day + 'T12:00:00');
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+  return Array.from({ length: 7 }, (_, i) => iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() + i)));
 }
 
 // ---------- Renderizacao ----------
@@ -122,11 +126,11 @@ function renderEmployees() {
 
 function renderTable() {
   const emp = currentEmp();
-  const [y, m] = state.month.split('-').map(Number);
-  $('monthLabel').textContent = new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const dates = viewDates();
+  $('monthLabel').textContent = `Semana de ${br(dates[0]).slice(0, 5)} a ${br(dates[6])}`;
   const s = emp.schedule;
   const lock = isAdmin() ? '' : 'disabled'; // colaborador apenas consulta
-  $('rows').innerHTML = monthDates().map((date) => {
+  $('rows').innerHTML = dates.map((date) => {
     const rec = state.records[date] ?? emptyRec();
     const c = calcDay(emp, date, rec);
     const inputs = SLOTS.map((k) =>
@@ -140,7 +144,7 @@ function renderTable() {
       <td><input type="checkbox" data-date="${date}" data-abono ${rec.abono ? 'checked' : ''} ${c.isWork ? lock : 'disabled'} title="Abonar o dia" aria-label="Abonar ${date}"></td>
     </tr>`;
   }).join('');
-  monthDates().forEach(updateRow);
+  dates.forEach(updateRow);
   renderSummary();
 }
 
@@ -162,7 +166,7 @@ function updateRow(date) {
 function renderSummary() {
   const emp = currentEmp();
   const t = { worked: 0, expected: 0, saldo: 0, extra: 0, late: 0, lateDays: 0, faltas: 0 };
-  for (const date of monthDates()) {
+  for (const date of viewDates()) {
     const c = calcDay(emp, date, state.records[date] ?? emptyRec());
     t.worked += c.worked;
     if (c.counted) { t.expected += c.expected; t.saldo += c.saldo; t.extra += c.extra; }
@@ -172,7 +176,7 @@ function renderSummary() {
   const tile = (label, value, cls = '') => `<div class="tile"><div class="label">${label}</div><div class="value ${cls}">${value}</div></div>`;
   $('summary').innerHTML =
     tile('Trabalhado / Previsto', `${fmt(t.worked)}<small> / ${fmt(t.expected)}</small>`) +
-    tile('Saldo do mês', fmt(t.saldo, true) || '0:00', t.saldo < 0 ? 'neg' : t.saldo > 0 ? 'pos' : '') +
+    tile('Saldo da semana', fmt(t.saldo, true) || '0:00', t.saldo < 0 ? 'neg' : t.saldo > 0 ? 'pos' : '') +
     tile('Horas extras', fmt(t.extra)) +
     tile('Atrasos', `${fmt(t.late)}<small> · ${t.lateDays} dia(s)</small>`) +
     tile('Faltas', `${t.faltas}<small> dia(s)</small>`, t.faltas ? 'neg' : '');
@@ -191,7 +195,8 @@ async function loadEmployees() {
 
 async function loadRecords() {
   setDirty(null);
-  const data = await api('GET', `/api/employees/${state.empId}/records?month=${state.month}`);
+  const dates = viewDates();
+  const data = await api('GET', `/api/employees/${state.empId}/records?from=${dates[0]}&to=${dates[6]}`);
   state.today = data.today;
   state.records = data.records;
   renderTable();
@@ -222,7 +227,7 @@ async function start() {
   catch (e) { if (e.status === 401) return showAuth(); throw e; }
   state.me = data.user;
   state.today = data.today;
-  state.month = data.today.slice(0, 7);
+  state.day = data.today;
   state.empId = data.user.id;
   $('companyName').textContent = data.company.name;
   $('userName').textContent = data.user.name;
@@ -308,7 +313,7 @@ $('btnPunch').onclick = run(async () => {
   const r = await api('POST', '/api/punch');
   toast(`${r.label} registrada às ${r.time}`);
   state.empId = state.me.id;
-  state.month = r.date.slice(0, 7);
+  state.day = r.date;
   renderEmployees();
   await loadRecords();
 });
@@ -329,22 +334,22 @@ $('empSelect').onchange = run((ev) => switchEmp(ev.target.value));
 $('btnPrevEmp').onclick = run(() => stepEmp(-1));
 $('btnNextEmp').onclick = run(() => stepEmp(1));
 
-function stepMonth(delta) {
+function stepWeek(delta) {
   if (!canLeave()) return;
-  const [y, m] = state.month.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  state.month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const d = new Date(state.day + 'T12:00:00');
+  d.setDate(d.getDate() + 7 * delta);
+  state.day = iso(d);
   return loadRecords();
 }
-$('btnPrevMonth').onclick = run(() => stepMonth(-1));
-$('btnNextMonth').onclick = run(() => stepMonth(1));
+$('btnPrevMonth').onclick = run(() => stepWeek(-1));
+$('btnNextMonth').onclick = run(() => stepWeek(1));
 
 $('btnPrint').onclick = () => window.print();
 
 $('btnExport').onclick = () => {
   const emp = currentEmp();
   const lines = [['Data', 'Dia', 'Status', 'Ent1', 'Sai1', 'Ent2', 'Sai2', 'Trabalhado', 'Atraso', 'Extra', 'Saldo', 'Abono']];
-  for (const date of monthDates()) {
+  for (const date of viewDates()) {
     const rec = state.records[date] ?? emptyRec();
     const c = calcDay(emp, date, rec);
     lines.push([date.split('-').reverse().join('/'), WEEK[c.dow], STATUS_ICON[c.status][1], rec.e1, rec.s1, rec.e2, rec.s2,
@@ -355,7 +360,7 @@ $('btnExport').onclick = () => {
   const csv = '﻿' + lines.map((l) => l.map(cell).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `ponto_${emp.name.replace(/[^\p{L}\p{N}]+/gu, '_')}_${state.month}.csv`;
+  a.download = `ponto_${emp.name.replace(/[^\p{L}\p{N}]+/gu, '_')}_${viewDates()[0]}_a_${viewDates()[6]}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
 };

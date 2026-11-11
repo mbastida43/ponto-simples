@@ -20,7 +20,6 @@ const SESSION_DAYS = 7;
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const MONTH_RE = /^\d{4}-\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // E-mails aceitos: somente os dominios cadastrados aqui
 const CORP_DOMAINS = ['qintess.com', 'marlonbastida.com.br'];
@@ -82,7 +81,7 @@ const q = {
   deleteSession: db.prepare('DELETE FROM sessions WHERE token_hash = ?'),
   deleteUserSessions: db.prepare('DELETE FROM sessions WHERE user_id = ?'),
   purgeSessions: db.prepare('DELETE FROM sessions WHERE expires_at <= ?'),
-  recordsOfMonth: db.prepare('SELECT * FROM records WHERE user_id = ? AND date LIKE ?'),
+  recordsBetween: db.prepare('SELECT * FROM records WHERE user_id = ? AND date BETWEEN ? AND ?'),
   record: db.prepare('SELECT * FROM records WHERE user_id = ? AND date = ?'),
   upsertRecord: db.prepare(`INSERT INTO records (user_id, date, e1, s1, e2, s2, abono) VALUES (?, ?, ?, ?, ?, ?, ?)
                             ON CONFLICT (user_id, date) DO UPDATE SET e1 = excluded.e1, s1 = excluded.s1, e2 = excluded.e2, s2 = excluded.s2, abono = excluded.abono`),
@@ -430,10 +429,11 @@ async function handleApi(req, res, url) {
     if (!isAdmin && id !== me.id) throw new HttpError(403, 'Você só pode ver o seu próprio ponto.');
     const target = findEmployee(id);
     if (method === 'GET') {
-      const month = url.searchParams.get('month') ?? '';
-      if (!MONTH_RE.test(month)) throw new HttpError(400, 'Mês inválido.');
+      const from = url.searchParams.get('from') ?? '';
+      const to = url.searchParams.get('to') ?? '';
+      if (!DATE_RE.test(from) || !DATE_RE.test(to)) throw new HttpError(400, 'Período inválido.');
       const records = {};
-      for (const r of q.recordsOfMonth.all(target.id, month + '-%')) records[r.date] = toRecord(r);
+      for (const r of q.recordsBetween.all(target.id, from, to)) records[r.date] = toRecord(r);
       return sendJson(res, 200, { today: nowIn(company.timezone).date, records });
     }
     if (method === 'PUT') {

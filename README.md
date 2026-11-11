@@ -69,6 +69,7 @@ Variáveis de ambiente:
 - **Administrador:** cadastra colaboradores (e-mail + senha inicial, jornada, dias de trabalho), vê a apuração de todos, corrige marcações, abona dias, imprime e exporta CSV.
 - **Colaborador:** bate o próprio ponto e consulta a própria apuração (somente leitura).
 - **Bater ponto:** registra a hora do servidor, no fuso da empresa.
+- **Tela da semana:** igual à da versão sem servidor (semana inteira, de segunda a domingo).
 
 O cadastro feito pelo próprio funcionário e o *Esqueci minha senha* existem apenas na versão sem servidor.
 
@@ -107,7 +108,7 @@ Itens que ficaram de fora de propósito, para manter o projeto simples:
 | GET | `/api/employees` | logado | admin: todos da empresa; colaborador: só ele |
 | POST | `/api/employees` | admin | cria colaborador |
 | PUT / DELETE | `/api/employees/:id` | admin | edita / exclui |
-| GET | `/api/employees/:id/records?month=AAAA-MM` | admin ou o próprio | marcações do mês |
+| GET | `/api/employees/:id/records?from=AAAA-MM-DD&to=AAAA-MM-DD` | admin ou o próprio | marcações do período |
 | PUT | `/api/employees/:id/records` | admin | corrige marcações |
 
 ## E-mails aceitos
