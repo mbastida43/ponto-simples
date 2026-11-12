@@ -133,7 +133,6 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
 @media (max-width: 640px) { .top { flex-wrap: wrap; gap: 8px; } .clock { display: none; } }
 .textlink { background: none; border: 0; color: var(--primary); font: inherit; cursor: pointer; padding: 8px 0 0; text-decoration: underline; }
 .hint { font-size: 13px; margin: 0; }
-.code { font: 700 28px/1.4 ui-monospace, Consolas, monospace; letter-spacing: 3px; text-align: center; margin: 4px 0; user-select: all; }
   </style>
 </head>
 <body>
@@ -160,12 +159,11 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
         <button class="btn primary big" type="submit">Cadastrar</button>
       </form>
       <form id="forgotForm" class="form" hidden>
-        <p class="hint muted">Informe o código de recuperação que você recebeu ao entrar pela primeira vez e escolha a nova senha.</p>
+        <p class="hint muted">Informe o seu e-mail corporativo e digite a nova senha duas vezes.</p>
         <label>E-mail corporativo <input name="email" type="email" required autocomplete="username"></label>
-        <label>Código de recuperação <input name="code" required autocomplete="off" placeholder="XXXX-XXXX"></label>
         <label>Nova senha (mínimo 8 caracteres) <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+        <label>Repita a nova senha <input name="confirm" type="password" required minlength="8" autocomplete="new-password"></label>
         <button class="btn primary big" type="submit">Alterar senha</button>
-        <button id="btnAskAdmin" class="textlink" type="button">Não tenho o código: pedir ao administrador</button>
         <button id="btnBackLogin" class="textlink" type="button">Voltar para o login</button>
       </form>
       <p id="authError" class="error" hidden></p>
@@ -323,19 +321,6 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
     </form>
   </dialog>
 
-  <!-- Codigo de recuperacao de senha -->
-  <dialog id="codeDialog">
-    <form method="dialog" class="form">
-      <h2>Seu código de recuperação</h2>
-      <p class="hint">Anote e guarde este código. Ele é a única forma de trocar a senha sozinho se você a esquecer, e não será mostrado de novo.</p>
-      <p id="codeValue" class="code"></p>
-      <div class="dialog-actions">
-        <span class="spacer"></span>
-        <button type="submit" class="btn primary">Já anotei</button>
-      </div>
-    </form>
-  </dialog>
-
   <div id="toast" class="toast" hidden></div>
   <script>
 // Ponto Simples - frontend em JavaScript puro
@@ -392,8 +377,7 @@ function now() {
   return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
 }
 function fail(status, message) { const e = new Error(message); e.status = status; throw e; }
-const publicUser = ({ hash, recovery, ...u }) => ({ ...u, hasRecovery: !!recovery });
-const cleanCode = (v) => String(v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const publicUser = ({ hash, recovery, ...u }) => u;
 const byEmail = (email) => db.users.find((u) => u.email === email);
 
 // PBKDF2 + salt (Web Crypto); guarda "salt:hash" em hex
@@ -483,14 +467,15 @@ async function backend(method, url, body) {
     return { ok: true };
   }
   if (resource === 'forgot') {
+    // ponytail: sem servidor nao ha e-mail de confirmacao; quem sabe o e-mail troca a senha.
+    // A troca fica registrada (resetAt) para o administrador ver. Verificacao real exige o server.js.
     const u = byEmail(cleanEmail(body.email));
-    if (body.code === undefined) { // sem codigo: o pedido vai para o administrador
-      if (u) { u.resetRequested = true; persist(); }
-      return { ok: true }; // mesma resposta exista ou nao o e-mail
-    }
     const password = cleanPassword(body.password, true);
-    if (!u?.recovery || !(await verifyPassword(cleanCode(body.code), u.recovery))) fail(400, 'E-mail ou código de recuperação incorretos.');
+    if (password !== body.confirm) fail(400, 'As duas senhas não são iguais.');
+    if (!u) fail(404, 'Este e-mail não está cadastrado. Use a aba Cadastrar funcionário.');
     u.hash = await hashPassword(password);
+    const t = now();
+    u.resetAt = `${t.date.split('-').reverse().join('/')} ${t.time}`;
     delete u.resetRequested;
     persist();
     return { ok: true };
@@ -503,13 +488,6 @@ async function backend(method, url, body) {
 
   if (resource === 'logout') { sessionStorage.removeItem(SESSION_KEY); return { ok: true }; }
   if (resource === 'me' && !id) return { user: publicUser(me), company: { name: 'Ponto Simples' }, today: now().date };
-  if (resource === 'me' && id === 'recovery') { // gera um novo codigo; so o hash fica guardado
-    const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-    const code = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => A[b % A.length]).join('');
-    me.recovery = await hashPassword(code);
-    persist();
-    return { code: code.slice(0, 4) + '-' + code.slice(4) };
-  }
   if (resource === 'me' && id === 'password') {
     if (!(await verifyPassword(String(body.current ?? ''), me.hash))) fail(400, 'Senha atual incorreta.');
     me.hash = await hashPassword(cleanPassword(body.next, true));
@@ -569,7 +547,9 @@ async function backend(method, url, body) {
     if (other && other !== target) fail(409, 'Este e-mail já está cadastrado.');
     const password = cleanPassword(body.password, false);
     Object.assign(target, d);
-    if (password) { target.hash = await hashPassword(password); delete target.resetRequested; }
+    if (password) target.hash = await hashPassword(password);
+    delete target.resetAt; // administrador viu e salvou: some o aviso
+    delete target.resetRequested;
     persist();
     return publicUser(target);
   }
@@ -668,7 +648,7 @@ function statusHtml(c) {
 
 function renderEmployees() {
   const sel = $('empSelect');
-  sel.innerHTML = state.employees.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}${e.resetRequested ? ' (pediu nova senha)' : ''}</option>`).join('');
+  sel.innerHTML = state.employees.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}${e.resetAt ? ` (trocou a senha pelo Esqueci minha senha em ${esc(e.resetAt)})` : ''}</option>`).join('');
   if (!currentEmp()) state.empId = state.me.id;
   const emp = currentEmp();
   sel.value = emp.id;
@@ -790,12 +770,8 @@ async function start() {
   $('appView').hidden = false;
   await loadEmployees();
   await loadRecords();
-  if (!state.me.hasRecovery) { // primeiro acesso: entrega o codigo de recuperacao
-    $('codeValue').textContent = (await api('POST', '/api/me/recovery')).code;
-    $('codeDialog').showModal();
-  }
-  const pending = state.employees.filter((e) => e.resetRequested).map((e) => e.name);
-  if (isAdmin() && pending.length) toast(`Pedido de nova senha: ${pending.join(', ')}. Use Editar para definir.`);
+  const resets = state.employees.filter((e) => e.resetAt).map((e) => e.name);
+  if (isAdmin() && resets.length) toast(`Trocaram a senha pelo "Esqueci minha senha": ${resets.join(', ')}.`);
 }
 
 function setTab(form) {
@@ -810,25 +786,21 @@ $('btnForgot').onclick = () => setTab('forgotForm');
 $('btnBackLogin').onclick = () => setTab('loginForm');
 if (!loadDb().users.length) setTab('signupForm'); // primeiro acesso: pede o cadastro
 
-// Com o codigo de recuperacao a senha troca na hora; sem ele, o pedido vai para o administrador
-async function forgot(body, done) {
+$('forgotForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const f = ev.target;
   $('authError').hidden = true;
   try {
-    await api('POST', '/api/forgot', body);
-    $('forgotForm').reset();
+    await api('POST', '/api/forgot', { email: f.email.value, password: f.password.value, confirm: f.confirm.value });
+    $('loginForm').email.value = f.email.value;
+    f.reset();
     setTab('loginForm');
-    toast(done);
+    toast('Senha alterada. Entre com a nova senha.');
   } catch (e) {
     $('authError').textContent = e.message;
     $('authError').hidden = false;
   }
-}
-$('forgotForm').addEventListener('submit', (ev) => {
-  ev.preventDefault();
-  const f = ev.target;
-  forgot({ email: f.email.value, code: f.code.value, password: f.password.value }, 'Senha alterada. Entre com a nova senha.');
 });
-$('btnAskAdmin').onclick = () => forgot({ email: $('forgotForm').email.value }, 'Pedido enviado ao administrador. A senha só muda quando ele definir uma nova.');
 
 function authSubmit(url, getBody) {
   return async (ev) => {

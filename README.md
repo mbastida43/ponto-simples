@@ -26,13 +26,9 @@ Dê dois cliques no `index.html`, ou abra o link do GitHub Pages acima.
 
 ### Esqueci minha senha
 
-No primeiro acesso, cada usuário recebe um **código de recuperação** (ex.: `K7QM-2XPA`), mostrado uma única vez. Guarde-o.
+Na tela de login, *Esqueci minha senha* pede o e-mail corporativo e a nova senha, digitada duas vezes, e **troca a senha na hora**.
 
-Na tela de login, *Esqueci minha senha* pede o e-mail, o código de recuperação e a nova senha, e **troca a senha na hora**.
-
-Quem perdeu o código usa *Não tenho o código: pedir ao administrador*. Nesse caso a senha não muda sozinha: o administrador recebe um aviso no próximo login, o funcionário aparece na lista como *(pediu nova senha)*, e o administrador define a nova senha em **Editar**.
-
-Não há envio de e-mail, porque esta versão não tem servidor. Se o administrador perder a senha e o código, não há como recuperar a conta.
+Não há e-mail de confirmação, porque esta versão não tem servidor: **quem souber o e-mail de um usuário e tiver acesso ao computador consegue trocar a senha dele**. Como controle, toda troca feita por esse caminho fica registrada: o administrador recebe um aviso no próximo login e o funcionário aparece na lista como *(trocou a senha pelo Esqueci minha senha em …)* até o administrador abrir **Editar** e salvar.
 
 ### Limites desta versão
 
