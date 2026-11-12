@@ -133,6 +133,7 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
 @media (max-width: 640px) { .top { flex-wrap: wrap; gap: 8px; } .clock { display: none; } }
 .textlink { background: none; border: 0; color: var(--primary); font: inherit; cursor: pointer; padding: 8px 0 0; text-decoration: underline; }
 .hint { font-size: 13px; margin: 0; }
+.code { font: 700 28px/1.4 ui-monospace, Consolas, monospace; letter-spacing: 3px; text-align: center; margin: 4px 0; user-select: all; }
   </style>
 </head>
 <body>
@@ -159,9 +160,12 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
         <button class="btn primary big" type="submit">Cadastrar</button>
       </form>
       <form id="forgotForm" class="form" hidden>
-        <p class="hint muted">O administrador receberá o pedido e definirá uma nova senha.</p>
+        <p class="hint muted">Informe o código de recuperação que você recebeu ao entrar pela primeira vez e escolha a nova senha.</p>
         <label>E-mail corporativo <input name="email" type="email" required autocomplete="username"></label>
-        <button class="btn primary big" type="submit">Solicitar nova senha</button>
+        <label>Código de recuperação <input name="code" required autocomplete="off" placeholder="XXXX-XXXX"></label>
+        <label>Nova senha (mínimo 8 caracteres) <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+        <button class="btn primary big" type="submit">Alterar senha</button>
+        <button id="btnAskAdmin" class="textlink" type="button">Não tenho o código: pedir ao administrador</button>
         <button id="btnBackLogin" class="textlink" type="button">Voltar para o login</button>
       </form>
       <p id="authError" class="error" hidden></p>
@@ -175,6 +179,7 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
       <div class="top-right">
         <span id="clock" class="clock"></span>
         <button id="btnPunch" class="btn primary big">Bater ponto</button>
+        <button id="btnManual" class="btn big">Marcar manualmente</button>
         <span class="user no-print">
           <span id="userName"></span>
           <button id="btnPassword" class="toplink">Alterar senha</button>
@@ -297,6 +302,40 @@ td input[type=time]:disabled:hover { border-color: transparent; background: tran
     </form>
   </dialog>
 
+  <!-- Marcacao manual do proprio ponto -->
+  <dialog id="manualDialog">
+    <form id="manualForm" class="form">
+      <h2>Marcar ponto manualmente</h2>
+      <label>Dia <input name="date" type="date" required></label>
+      <div class="grid2">
+        <label>Entrada <input name="e1" type="time"></label>
+        <label>Saída intervalo <input name="s1" type="time"></label>
+        <label>Retorno <input name="e2" type="time"></label>
+        <label>Saída <input name="s2" type="time"></label>
+      </div>
+      <p class="hint muted">Deixe em branco o que ainda não aconteceu. O dia fica marcado como preenchido manualmente.</p>
+      <p id="manualError" class="error" hidden></p>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button type="button" id="btnCloseManual" class="btn">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Codigo de recuperacao de senha -->
+  <dialog id="codeDialog">
+    <form method="dialog" class="form">
+      <h2>Seu código de recuperação</h2>
+      <p class="hint">Anote e guarde este código. Ele é a única forma de trocar a senha sozinho se você a esquecer, e não será mostrado de novo.</p>
+      <p id="codeValue" class="code"></p>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button type="submit" class="btn primary">Já anotei</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" hidden></div>
   <script>
 // Ponto Simples - frontend em JavaScript puro
@@ -353,7 +392,8 @@ function now() {
   return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
 }
 function fail(status, message) { const e = new Error(message); e.status = status; throw e; }
-const publicUser = ({ hash, ...u }) => u;
+const publicUser = ({ hash, recovery, ...u }) => ({ ...u, hasRecovery: !!recovery });
+const cleanCode = (v) => String(v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 const byEmail = (email) => db.users.find((u) => u.email === email);
 
 // PBKDF2 + salt (Web Crypto); guarda "salt:hash" em hex
@@ -443,10 +483,17 @@ async function backend(method, url, body) {
     return { ok: true };
   }
   if (resource === 'forgot') {
-    const email = cleanEmail(body.email);
-    const u = byEmail(email);
-    if (u) { u.resetRequested = true; persist(); }
-    return { ok: true }; // mesma resposta exista ou nao o e-mail
+    const u = byEmail(cleanEmail(body.email));
+    if (body.code === undefined) { // sem codigo: o pedido vai para o administrador
+      if (u) { u.resetRequested = true; persist(); }
+      return { ok: true }; // mesma resposta exista ou nao o e-mail
+    }
+    const password = cleanPassword(body.password, true);
+    if (!u?.recovery || !(await verifyPassword(cleanCode(body.code), u.recovery))) fail(400, 'E-mail ou código de recuperação incorretos.');
+    u.hash = await hashPassword(password);
+    delete u.resetRequested;
+    persist();
+    return { ok: true };
   }
 
   const me = db.users.find((u) => u.id === sessionStorage.getItem(SESSION_KEY));
@@ -456,11 +503,31 @@ async function backend(method, url, body) {
 
   if (resource === 'logout') { sessionStorage.removeItem(SESSION_KEY); return { ok: true }; }
   if (resource === 'me' && !id) return { user: publicUser(me), company: { name: 'Ponto Simples' }, today: now().date };
+  if (resource === 'me' && id === 'recovery') { // gera um novo codigo; so o hash fica guardado
+    const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    const code = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => A[b % A.length]).join('');
+    me.recovery = await hashPassword(code);
+    persist();
+    return { code: code.slice(0, 4) + '-' + code.slice(4) };
+  }
   if (resource === 'me' && id === 'password') {
     if (!(await verifyPassword(String(body.current ?? ''), me.hash))) fail(400, 'Senha atual incorreta.');
     me.hash = await hashPassword(cleanPassword(body.next, true));
     persist();
     return { ok: true };
+  }
+  if (resource === 'punch' && id === 'manual') { // o proprio usuario informa os horarios do dia
+    const date = String(body.date ?? '');
+    if (!DATE_RE.test(date) || date > now().date) fail(400, 'Escolha um dia até hoje.');
+    const rec = cleanRecord(body);
+    const t = SLOTS.map((k) => rec[k]).filter(Boolean);
+    if (t.some((v, i) => i && v <= t[i - 1])) fail(400, 'Os horários devem estar em ordem crescente.');
+    const recs = (db.records[me.id] ??= {});
+    delete rec.abono; // abono continua sendo so do administrador
+    if (recs[date]?.abono) rec.abono = true;
+    if (!t.length && !rec.abono) delete recs[date]; else recs[date] = { ...rec, ...(t.length ? { manual: true } : {}) };
+    persist();
+    return { date };
   }
   if (resource === 'punch') {
     const { date, time } = now();
@@ -624,7 +691,7 @@ function renderTable() {
       `<td class="t-${k}"><input type="time" data-date="${date}" data-slot="${k}" value="${esc(rec[k] || '')}" aria-label="${k} ${date}" ${lock}></td>`).join('');
     return `<tr data-date="${date}" class="${c.isToday ? 'today' : ''} ${c.isWork ? '' : 'off'}">
       <td class="c-status"></td>
-      <td class="left">${date.slice(8)}/${date.slice(5, 7)} · ${WEEK[c.dow]}</td>
+      <td class="left">${date.slice(8)}/${date.slice(5, 7)} · ${WEEK[c.dow]}${rec.manual ? ' <span class="muted" title="Preenchido manualmente">&#9998;</span>' : ''}</td>
       <td>${c.isWork ? `${s.e1.slice(0, 2)}-${s.s1.slice(0, 2)}/${s.e2.slice(0, 2)}-${s.s2.slice(0, 2)}` : 'Folga'}</td>
       ${inputs}
       <td class="c-worked"></td><td class="c-late late"></td><td class="c-extra pos"></td><td class="c-saldo"></td>
@@ -723,6 +790,10 @@ async function start() {
   $('appView').hidden = false;
   await loadEmployees();
   await loadRecords();
+  if (!state.me.hasRecovery) { // primeiro acesso: entrega o codigo de recuperacao
+    $('codeValue').textContent = (await api('POST', '/api/me/recovery')).code;
+    $('codeDialog').showModal();
+  }
   const pending = state.employees.filter((e) => e.resetRequested).map((e) => e.name);
   if (isAdmin() && pending.length) toast(`Pedido de nova senha: ${pending.join(', ')}. Use Editar para definir.`);
 }
@@ -739,18 +810,25 @@ $('btnForgot').onclick = () => setTab('forgotForm');
 $('btnBackLogin').onclick = () => setTab('loginForm');
 if (!loadDb().users.length) setTab('signupForm'); // primeiro acesso: pede o cadastro
 
-$('forgotForm').addEventListener('submit', async (ev) => {
-  ev.preventDefault();
+// Com o codigo de recuperacao a senha troca na hora; sem ele, o pedido vai para o administrador
+async function forgot(body, done) {
+  $('authError').hidden = true;
   try {
-    await api('POST', '/api/forgot', { email: ev.target.email.value });
-    ev.target.reset();
+    await api('POST', '/api/forgot', body);
+    $('forgotForm').reset();
     setTab('loginForm');
-    toast('Pedido enviado ao administrador.');
+    toast(done);
   } catch (e) {
     $('authError').textContent = e.message;
     $('authError').hidden = false;
   }
+}
+$('forgotForm').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const f = ev.target;
+  forgot({ email: f.email.value, code: f.code.value, password: f.password.value }, 'Senha alterada. Entre com a nova senha.');
 });
+$('btnAskAdmin').onclick = () => forgot({ email: $('forgotForm').email.value }, 'Pedido enviado ao administrador. A senha só muda quando ele definir uma nova.');
 
 function authSubmit(url, getBody) {
   return async (ev) => {
@@ -819,6 +897,39 @@ $('btnPunch').onclick = run(async () => {
   state.day = r.date;
   renderEmployees();
   await loadRecords();
+});
+
+// Marcacao manual: o usuario logado edita todos os horarios de um dia seu
+async function fillManual(date) {
+  const f = $('manualForm');
+  const { records } = await api('GET', `/api/employees/${state.me.id}/records?from=${date}&to=${date}`);
+  for (const k of SLOTS) f[k].value = records[date]?.[k] ?? '';
+}
+$('btnManual').onclick = run(async () => {
+  await save(); // garante que edicoes pendentes nao se percam
+  const f = $('manualForm');
+  $('manualError').hidden = true;
+  f.date.max = f.date.value = state.today;
+  await fillManual(state.today);
+  $('manualDialog').showModal();
+});
+$('manualForm').date.onchange = run((ev) => ev.target.value && fillManual(ev.target.value));
+$('btnCloseManual').onclick = () => $('manualDialog').close();
+$('manualForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const f = ev.target;
+  try {
+    const r = await api('POST', '/api/punch/manual', { date: f.date.value, ...Object.fromEntries(SLOTS.map((k) => [k, f[k].value])) });
+    $('manualDialog').close();
+    state.empId = state.me.id;
+    state.day = r.date;
+    renderEmployees();
+    await loadRecords();
+    toast(`Ponto de ${br(r.date)} salvo.`);
+  } catch (e) {
+    $('manualError').textContent = e.message;
+    $('manualError').hidden = false;
+  }
 });
 
 function switchEmp(id) {

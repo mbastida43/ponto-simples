@@ -20,12 +20,19 @@ Dê dois cliques no `index.html`, ou abra o link do GitHub Pages acima.
 1. **Cadastro do funcionário:** no primeiro acesso a tela já abre em *Cadastrar funcionário* (nome, cargo, e-mail corporativo e senha de no mínimo 8 caracteres). **O primeiro cadastro vira administrador**; os seguintes entram como colaboradores.
 2. **Login:** e-mail e senha. A sessão termina quando o navegador é fechado.
 3. **Bater ponto:** o botão registra a hora do computador na próxima marcação livre do dia (entrada, saída para intervalo, retorno, saída).
-4. **Tela da semana:** a apuração abre mostrando só a semana atual inteira, de segunda a domingo, com o saldo da semana. As setas trocam de semana. Imprimir e Exportar CSV também são por semana.
-5. **Administrador:** edita jornada e dias de trabalho de cada colaborador, corrige marcações, abona dias, imprime e exporta CSV. O colaborador só consulta o próprio ponto.
+4. **Marcar manualmente:** o botão abre o dia (hoje ou um dia anterior) com os quatro horários para o próprio usuário preencher ou corrigir. O dia fica com um lápis (✎) na tabela, indicando que foi preenchido manualmente.
+5. **Tela da semana:** a apuração abre mostrando só a semana atual inteira, de segunda a domingo, com o saldo da semana. As setas trocam de semana. Imprimir e Exportar CSV também são por semana.
+6. **Administrador:** edita jornada e dias de trabalho de cada colaborador, corrige marcações, abona dias, imprime e exporta CSV. O colaborador só consulta o próprio ponto.
 
 ### Esqueci minha senha
 
-O botão fica na tela de login. Como não há servidor para enviar e-mail, o pedido vai para o administrador: no próximo login ele recebe um aviso e o funcionário aparece na lista como *(pediu nova senha)*. O administrador clica em **Editar** e define a nova senha.
+No primeiro acesso, cada usuário recebe um **código de recuperação** (ex.: `K7QM-2XPA`), mostrado uma única vez. Guarde-o.
+
+Na tela de login, *Esqueci minha senha* pede o e-mail, o código de recuperação e a nova senha, e **troca a senha na hora**.
+
+Quem perdeu o código usa *Não tenho o código: pedir ao administrador*. Nesse caso a senha não muda sozinha: o administrador recebe um aviso no próximo login, o funcionário aparece na lista como *(pediu nova senha)*, e o administrador define a nova senha em **Editar**.
+
+Não há envio de e-mail, porque esta versão não tem servidor. Se o administrador perder a senha e o código, não há como recuperar a conta.
 
 ### Limites desta versão
 
